@@ -1,11 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class PixelPaintGrid : MonoBehaviour
 {
     BoardData _board;
     BoardRenderer _boardRenderer;
+    Texture2D _numberAtlas;
     readonly List<PaintPiece> _leftoverPieces = new();
 
     public BoardData Board => _board;
@@ -61,7 +63,15 @@ public class PixelPaintGrid : MonoBehaviour
             yield break;
         }
 
-        _boardRenderer = new BoardRenderer(_board, cubeMesh, boardMaterial, transform.position);
+        TMP_FontAsset numberFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        if (numberFont == null)
+        {
+            Debug.LogError("PixelPaintGrid: missing default TMP font asset for number baking.");
+            yield break;
+        }
+
+        _numberAtlas = NumberAtlasBaker.Bake(_board, numberFont);
+        _boardRenderer = new BoardRenderer(_board, cubeMesh, boardMaterial, transform.position, _numberAtlas);
 
         SpawnLeftoverPieces(settings.PiecePrefab, settings.PieceSize);
     }
@@ -103,6 +113,12 @@ public class PixelPaintGrid : MonoBehaviour
         _leftoverPieces.Clear();
         _board = null;
         _boardRenderer = null;
+
+        if (_numberAtlas != null)
+        {
+            Destroy(_numberAtlas);
+            _numberAtlas = null;
+        }
 
         StartCoroutine(Init());
     }

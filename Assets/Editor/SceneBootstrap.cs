@@ -131,18 +131,29 @@ static class SceneBootstrap
 
     static void EnsureBoardMaterial()
     {
-        if (AssetDatabase.LoadAssetAtPath<Material>(BoardMaterialPath) != null)
+        Shader shader = Shader.Find("Custom/BoardInstanced");
+        if (shader == null)
+        {
+            Debug.LogError("SceneBootstrap: could not find Custom/BoardInstanced shader.");
             return;
+        }
+
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(BoardMaterialPath);
+        if (existing != null)
+        {
+            if (existing.shader != shader)
+            {
+                existing.shader = shader;
+                existing.enableInstancing = true;
+                EditorUtility.SetDirty(existing);
+                AssetDatabase.SaveAssets();
+                Debug.Log($"SceneBootstrap: updated {BoardMaterialPath} to use {shader.name}.");
+            }
+            return;
+        }
 
         Directory.CreateDirectory("Assets/Resources");
         AssetDatabase.Refresh();
-
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null)
-        {
-            Debug.LogError("SceneBootstrap: could not find Universal Render Pipeline/Lit shader.");
-            return;
-        }
 
         Material material = new Material(shader) { enableInstancing = true };
         AssetDatabase.CreateAsset(material, BoardMaterialPath);
