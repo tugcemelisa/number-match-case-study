@@ -70,7 +70,13 @@ Shader "Custom/BoardInstanced"
 
                 if (normalWS.y > 0.9 && baseColor.a > 0.5)
                 {
-                    float2 localUV = frac(IN.positionWS.xz);
+                    // Cube instances are centered exactly on integer cell
+                    // coordinates (cell (x,z) spans world [x-0.5,x+0.5]),
+                    // but the baked atlas and _CellUV both use the [x,x+1)
+                    // convention - the +0.5 shift lines the wrap boundary
+                    // up with the cube's actual edges instead of splitting
+                    // each glyph down the middle.
+                    float2 localUV = frac(IN.positionWS.xz + 0.5);
                     float2 atlasUV = cellUV.xy + localUV * cellUV.zw;
                     float4 atlasSample = SAMPLE_TEXTURE2D(_NumberAtlas, sampler_NumberAtlas, atlasUV);
                     color = lerp(color, atlasSample.rgb, atlasSample.a);

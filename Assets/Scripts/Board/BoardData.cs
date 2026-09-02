@@ -102,25 +102,21 @@ public class BoardData
         }
     }
 
-    public bool TryFillOneCell(int number, out int cellIndex)
+    // Fills the specific cell under a drop point - the player must drop a
+    // piece on a cell that both matches its number AND isn't already filled,
+    // not just anywhere a matching number happens to still be open.
+    public bool TryFillCell(int cellIndex, int number)
     {
-        if (NumberToCellIndices.TryGetValue(number, out List<int> indices))
-        {
-            foreach (int index in indices)
-            {
-                if (!Cells[index].filled)
-                {
-                    Cell cell = Cells[index];
-                    cell.filled = true;
-                    Cells[index] = cell;
-                    cellIndex = index;
-                    return true;
-                }
-            }
-        }
+        if (cellIndex < 0 || cellIndex >= Cells.Length)
+            return false;
 
-        cellIndex = -1;
-        return false;
+        Cell cell = Cells[cellIndex];
+        if (cell.filled || cell.number != number)
+            return false;
+
+        cell.filled = true;
+        Cells[cellIndex] = cell;
+        return true;
     }
 
     public Vector3 GetCellLocalPosition(int cellIndex)

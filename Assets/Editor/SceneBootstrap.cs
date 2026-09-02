@@ -1,9 +1,11 @@
 #if UNITY_EDITOR
 using System.IO;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.TextCore.LowLevel;
 
 // Editor-only convenience: keeps required manager GameObjects and shared
 // assets present in the project without manual wiring through the Editor
@@ -13,15 +15,21 @@ using UnityEngine.SceneManagement;
 static class SceneBootstrap
 {
     const string BoardMaterialPath = "Assets/Resources/BoardInstanced.mat";
+    const string BackgroundMaterialPath = "Assets/Resources/RadialGradientBackground.mat";
 
     static SceneBootstrap()
     {
         EditorApplication.delayCall += Run;
     }
 
+    const string NumberFontPath = "Assets/Resources/Bangers SDF.asset";
+    const string SourceFontPath = "Assets/Fonts/Bangers-Regular.ttf";
+
     static void Run()
     {
         EnsureBoardMaterial();
+        EnsureNumberFont();
+        EnsurePiecePrefabFont();
         EnsureMobileOrientation();
 
         Scene scene = SceneManager.GetActiveScene();
@@ -30,9 +38,11 @@ static class SceneBootstrap
 
         bool changed = false;
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
+        changed |= EnsureDragDropController();
         changed |= NormalizeGridSize();
         changed |= RemoveOrphanedTestObjects();
         changed |= DarkenEnvironment();
+        changed |= EnsureGradientBackground();
 
         if (changed)
         {
@@ -49,6 +59,26 @@ static class SceneBootstrap
         var go = new GameObject(gameObjectName);
         go.AddComponent<T>();
         Debug.Log($"SceneBootstrap: added {gameObjectName} ({typeof(T).Name}) to the scene.");
+        return true;
+    }
+
+    static bool EnsureDragDropController()
+    {
+        if (Object.FindAnyObjectByType<DragDropController>() != null)
+            return false;
+
+        PixelPaintGrid grid = Object.FindAnyObjectByType<PixelPaintGrid>();
+        if (grid == null)
+            return false;
+
+        var go = new GameObject("Drag Drop Controller");
+        DragDropController controller = go.AddComponent<DragDropController>();
+
+        var serialized = new SerializedObject(controller);
+        serialized.FindProperty("grid").objectReferenceValue = grid;
+        serialized.ApplyModifiedProperties();
+
+        Debug.Log("SceneBootstrap: added Drag Drop Controller to the scene.");
         return true;
     }
 
@@ -77,15 +107,18 @@ static class SceneBootstrap
         Debug.Log("SceneBootstrap: locked default interface orientation to Portrait for mobile.");
     }
 
+    static readonly Color OuterBackgroundColor = new Color(0.03f, 0.03f, 0.06f, 1f);
+    static readonly Color InnerBackgroundColor = new Color(0.13f, 0.11f, 0.24f, 1f);
+
     static bool DarkenEnvironment()
     {
         bool changed = false;
 
         Camera main = Camera.main;
-        if (main != null && (main.clearFlags != CameraClearFlags.SolidColor || main.backgroundColor != Color.black))
+        if (main != null && (main.clearFlags != CameraClearFlags.SolidColor || main.backgroundColor != OuterBackgroundColor))
         {
             main.clearFlags = CameraClearFlags.SolidColor;
-            main.backgroundColor = Color.black;
+            main.backgroundColor = OuterBackgroundColor;
             changed = true;
         }
 
@@ -101,9 +134,51 @@ static class SceneBootstrap
         }
 
         if (changed)
-            Debug.Log("SceneBootstrap: set camera background to black and hid the ground plane's renderer (collider kept for drag raycasts) so masked gray cells read clearly against the environment.");
+            Debug.Log("SceneBootstrap: set camera background to a dark tone and hid the ground plane's renderer (collider kept for drag raycasts) so masked gray cells read clearly against the environment.");
 
         return changed;
+    }
+
+    static bool EnsureGradientBackground()
+    {
+        if (GameObject.Find("Background") != null)
+            return false;
+
+        Shader shader = Shader.Find("Custom/RadialGradientBackground");
+        if (shader == null)
+        {
+            Debug.LogError("SceneBootstrap: could not find Custom/RadialGradientBackground shader.");
+            return false;
+        }
+
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(BackgroundMaterialPath);
+        if (material == null)
+        {
+            Directory.CreateDirectory("Assets/Resources");
+            AssetDatabase.Refresh();
+
+            material = new Material(shader);
+            material.SetColor("_InnerColor", InnerBackgroundColor);
+            material.SetColor("_OuterColor", OuterBackgroundColor);
+            material.SetFloat("_Radius", 30f);
+            AssetDatabase.CreateAsset(material, BackgroundMaterialPath);
+            AssetDatabase.SaveAssets();
+        }
+
+        LevelSettings settings = Object.FindAnyObjectByType<LevelSettings>();
+        float centerX = settings != null ? (settings.GridWidth - 1) * settings.PieceSize * 0.5f : 7.5f;
+        float centerZ = settings != null ? (settings.GridHeight - 1) * settings.PieceSize * 0.5f : 7.5f;
+        material.SetVector("_Center", new Vector4(centerX, 0f, centerZ, 0f));
+
+        GameObject background = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        background.name = "Background";
+        Object.DestroyImmediate(background.GetComponent<Collider>());
+        background.transform.SetPositionAndRotation(new Vector3(centerX, -0.3f, centerZ), Quaternion.identity);
+        background.transform.localScale = new Vector3(30f, 1f, 30f);
+        background.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        Debug.Log("SceneBootstrap: added radial gradient Background plane to the scene.");
+        return true;
     }
 
     static bool RemoveOrphanedTestObjects()
@@ -127,6 +202,61 @@ static class SceneBootstrap
             if (component == null)
                 return true;
         return false;
+    }
+
+    static void EnsureNumberFont()
+    {
+        if (AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(NumberFontPath) != null)
+            return;
+
+        Font sourceFont = AssetDatabase.LoadAssetAtPath<Font>(SourceFontPath);
+        if (sourceFont == null)
+        {
+            Debug.LogWarning($"SceneBootstrap: source font not found at {SourceFontPath}, skipping TMP font asset creation.");
+            return;
+        }
+
+        Directory.CreateDirectory("Assets/Resources");
+        AssetDatabase.Refresh();
+
+        TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(
+            sourceFont, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
+
+        if (fontAsset == null)
+        {
+            Debug.LogError("SceneBootstrap: TMP_FontAsset.CreateFontAsset returned null - check the source font's import settings.");
+            return;
+        }
+
+        AssetDatabase.CreateAsset(fontAsset, NumberFontPath);
+        AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
+        AssetDatabase.AddObjectToAsset(fontAsset.atlasTextures[0], fontAsset);
+        AssetDatabase.SaveAssets();
+        Debug.Log($"SceneBootstrap: created {NumberFontPath} from {SourceFontPath}.");
+    }
+
+    static void EnsurePiecePrefabFont()
+    {
+        TMP_FontAsset numberFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(NumberFontPath);
+        if (numberFont == null)
+            return;
+
+        string[] guids = AssetDatabase.FindAssets("Piece t:Prefab", new[] { "Assets/Prefabs" });
+        if (guids.Length == 0)
+            return;
+
+        string prefabPath = AssetDatabase.GUIDToAssetPath(guids[0]);
+        GameObject prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+        TextMeshPro tmp = prefabRoot.GetComponentInChildren<TextMeshPro>(true);
+
+        if (tmp != null && tmp.font != numberFont)
+        {
+            tmp.font = numberFont;
+            PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
+            Debug.Log($"SceneBootstrap: updated {prefabPath} to use {numberFont.name}.");
+        }
+
+        PrefabUtility.UnloadPrefabContents(prefabRoot);
     }
 
     static void EnsureBoardMaterial()

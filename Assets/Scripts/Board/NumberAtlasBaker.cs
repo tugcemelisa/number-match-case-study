@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -8,7 +9,7 @@ using UnityEngine;
 // orthographic camera, then tears everything down immediately.
 public static class NumberAtlasBaker
 {
-    const int CellPixelSize = 64;
+    const int CellPixelSize = 96;
     const int MaxTextureSize = 4096;
 
     public static Texture2D Bake(BoardData board, TMP_FontAsset font)
@@ -37,6 +38,7 @@ public static class NumberAtlasBaker
             Quaternion.Euler(90f, 0f, 0f));
 
         var textParent = new GameObject("~NumberAtlasBakeText") { hideFlags = HideFlags.HideAndDontSave };
+        var allTexts = new List<TextMeshPro>(board.Cells.Length);
 
         foreach (Cell cell in board.Cells)
         {
@@ -55,8 +57,19 @@ public static class NumberAtlasBaker
             tmp.fontSizeMax = 20f;
             tmp.color = Color.white;
             tmp.rectTransform.sizeDelta = new Vector2(0.9f, 0.9f);
-            tmp.ForceMeshUpdate();
+            allTexts.Add(tmp);
         }
+
+        // Two passes: the first pass is what triggers the SDF font asset to
+        // generate glyph data for any digit seen for the first time: a mesh
+        // built in that same pass can end up referencing that glyph's atlas
+        // UVs before they've actually settled, which is what produced a
+        // garbled character here. Re-running ForceMeshUpdate once every
+        // glyph is already resident fixes it.
+        foreach (TextMeshPro tmp in allTexts)
+            tmp.ForceMeshUpdate();
+        foreach (TextMeshPro tmp in allTexts)
+            tmp.ForceMeshUpdate();
 
         bakeCamera.Render();
 

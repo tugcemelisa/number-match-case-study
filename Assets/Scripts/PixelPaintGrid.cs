@@ -12,6 +12,25 @@ public class PixelPaintGrid : MonoBehaviour
 
     public BoardData Board => _board;
 
+    // Attempts to fill the given cell with a piece of the given number.
+    // Returns false (no state change) if the cell doesn't exist, is already
+    // filled, or doesn't match the piece's number. Reveals the whole number
+    // group immediately once every one of its cells is filled.
+    public bool TryPlacePiece(int cellIndex, int number)
+    {
+        if (_board == null || !_board.TryFillCell(cellIndex, number))
+            return false;
+
+        if (_board.IsGroupComplete(number))
+        {
+            _board.RevealGroup(number);
+            foreach (int idx in _board.NumberToCellIndices[number])
+                _boardRenderer.RefreshCell(idx);
+        }
+
+        return true;
+    }
+
     void Start()
     {
         StartCoroutine(Init());
@@ -63,7 +82,7 @@ public class PixelPaintGrid : MonoBehaviour
             yield break;
         }
 
-        TMP_FontAsset numberFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        TMP_FontAsset numberFont = Resources.Load<TMP_FontAsset>("Bangers SDF");
         if (numberFont == null)
         {
             Debug.LogError("PixelPaintGrid: missing default TMP font asset for number baking.");
@@ -100,6 +119,7 @@ public class PixelPaintGrid : MonoBehaviour
 
             piece.Init(cell.color, cell.number);
             piece.SetTrayVisible();
+            piece.TrayPosition = position;
 
             _leftoverPieces.Add(piece);
         }
