@@ -5,8 +5,11 @@ using UnityEngine;
 
 public class PixelPaintGrid : MonoBehaviour
 {
+    [SerializeField] RevealEffects revealEffects;
+
     BoardData _board;
     BoardRenderer _boardRenderer;
+    RevealManager _revealManager;
     Texture2D _numberAtlas;
     readonly List<PaintPiece> _leftoverPieces = new();
 
@@ -14,21 +17,40 @@ public class PixelPaintGrid : MonoBehaviour
 
     // Attempts to fill the given cell with a piece of the given number.
     // Returns false (no state change) if the cell doesn't exist, is already
-    // filled, or doesn't match the piece's number. Reveals the whole number
-    // group immediately once every one of its cells is filled.
+    // filled, or doesn't match the piece's number. Once every cell in the
+    // number's group is filled, kicks off its staggered dissolve reveal
+    // plus the particle/camera-shake/audio moment.
     public bool TryPlacePiece(int cellIndex, int number)
     {
         if (_board == null || !_board.TryFillCell(cellIndex, number))
             return false;
 
+        Vector3 cellWorldPosition = transform.position + _board.GetCellLocalPosition(cellIndex);
+        Color cellColor = _board.Cells[cellIndex].color;
+
         if (_board.IsGroupComplete(number))
         {
             _board.RevealGroup(number);
-            foreach (int idx in _board.NumberToCellIndices[number])
-                _boardRenderer.RefreshCell(idx);
+            _revealManager.RevealGroup(number, this);
+
+            if (revealEffects != null)
+                revealEffects.PlayGroupComplete(GetGroupCentroidWorldPosition(number), cellColor);
+        }
+        else if (revealEffects != null)
+        {
+            revealEffects.PlayPlacement(cellWorldPosition, cellColor);
         }
 
         return true;
+    }
+
+    Vector3 GetGroupCentroidWorldPosition(int number)
+    {
+        List<int> cells = _board.NumberToCellIndices[number];
+        Vector3 sum = Vector3.zero;
+        foreach (int idx in cells)
+            sum += _board.GetCellLocalPosition(idx);
+        return transform.position + sum / cells.Count;
     }
 
     void Start()
@@ -91,6 +113,7 @@ public class PixelPaintGrid : MonoBehaviour
 
         _numberAtlas = NumberAtlasBaker.Bake(_board, numberFont);
         _boardRenderer = new BoardRenderer(_board, cubeMesh, boardMaterial, transform.position, _numberAtlas);
+        _revealManager = new RevealManager(_board, _boardRenderer);
 
         SpawnLeftoverPieces(settings.PiecePrefab, settings.PieceSize);
     }
@@ -133,6 +156,7 @@ public class PixelPaintGrid : MonoBehaviour
         _leftoverPieces.Clear();
         _board = null;
         _boardRenderer = null;
+        _revealManager = null;
 
         if (_numberAtlas != null)
         {

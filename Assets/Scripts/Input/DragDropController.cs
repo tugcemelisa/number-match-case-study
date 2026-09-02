@@ -14,11 +14,13 @@ public class DragDropController : MonoBehaviour
     Camera _camera;
     Plane _groundPlane;
     PaintPiece _draggedPiece;
+    RevealEffects _effects;
 
     void Awake()
     {
         _camera = Camera.main;
         _groundPlane = new Plane(Vector3.up, Vector3.zero);
+        _effects = FindAnyObjectByType<RevealEffects>();
     }
 
     void Update()
@@ -81,6 +83,7 @@ public class DragDropController : MonoBehaviour
 
         _draggedPiece = piece;
         piece.SetColliderEnabled(false);
+        _effects?.PlayPickup();
         UpdateDrag(screenPos);
     }
 
@@ -105,9 +108,14 @@ public class DragDropController : MonoBehaviour
         }
 
         if (placed)
+        {
             Destroy(piece.gameObject);
+        }
         else
+        {
             piece.PlayRejectAndReturn();
+            _effects?.PlayReject();
+        }
     }
 
     bool TryGetGroundPoint(Vector2 screenPos, out Vector3 point)

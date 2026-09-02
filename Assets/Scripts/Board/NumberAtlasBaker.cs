@@ -14,6 +14,17 @@ public static class NumberAtlasBaker
 
     public static Texture2D Bake(BoardData board, TMP_FontAsset font)
     {
+        // A dark outline keeps numbers legible once cells sit on top of
+        // bright/varied revealed colors instead of just the flat gray mask.
+        // Set once on the font asset's shared material so both the baked
+        // board numbers and the tray's live TMP text pick it up.
+        if (font.material != null)
+        {
+            font.material.SetColor(ShaderUtilities.ID_OutlineColor, Color.black);
+            font.material.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.2f);
+            font.material.EnableKeyword(ShaderUtilities.Keyword_Outline);
+        }
+
         int texWidth = Mathf.Clamp(board.Width * CellPixelSize, CellPixelSize, MaxTextureSize);
         int texHeight = Mathf.Clamp(board.Height * CellPixelSize, CellPixelSize, MaxTextureSize);
 

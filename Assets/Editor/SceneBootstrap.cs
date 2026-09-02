@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System.IO;
 using TMPro;
+using Unity.Cinemachine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -38,7 +39,9 @@ static class SceneBootstrap
 
         bool changed = false;
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
+        changed |= EnsureComponent<FpsCounter>("Fps Counter");
         changed |= EnsureDragDropController();
+        changed |= EnsureRevealEffects();
         changed |= NormalizeGridSize();
         changed |= RemoveOrphanedTestObjects();
         changed |= DarkenEnvironment();
@@ -80,6 +83,81 @@ static class SceneBootstrap
 
         Debug.Log("SceneBootstrap: added Drag Drop Controller to the scene.");
         return true;
+    }
+
+    static bool EnsureRevealEffects()
+    {
+        if (Object.FindAnyObjectByType<RevealEffects>() != null)
+            return false;
+
+        PixelPaintGrid grid = Object.FindAnyObjectByType<PixelPaintGrid>();
+        if (grid == null)
+            return false;
+
+        var go = new GameObject("Reveal Effects");
+        RevealEffects effects = go.AddComponent<RevealEffects>();
+
+        ParticleSystem burst = CreateBurstParticleSystem(go.transform);
+        CinemachineImpulseSource impulseSource = go.AddComponent<CinemachineImpulseSource>();
+        AudioSource audioSource = go.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+
+        var serialized = new SerializedObject(effects);
+        serialized.FindProperty("burst").objectReferenceValue = burst;
+        serialized.FindProperty("impulseSource").objectReferenceValue = impulseSource;
+        serialized.FindProperty("audioSource").objectReferenceValue = audioSource;
+        serialized.ApplyModifiedProperties();
+
+        var gridSerialized = new SerializedObject(grid);
+        gridSerialized.FindProperty("revealEffects").objectReferenceValue = effects;
+        gridSerialized.ApplyModifiedProperties();
+
+        CinemachineCamera vcam = Object.FindAnyObjectByType<CinemachineCamera>();
+        if (vcam != null && vcam.GetComponent<CinemachineImpulseListener>() == null)
+            vcam.gameObject.AddComponent<CinemachineImpulseListener>();
+
+        Debug.Log("SceneBootstrap: added Reveal Effects (particles + camera shake + audio hook) to the scene.");
+        return true;
+    }
+
+    static ParticleSystem CreateBurstParticleSystem(Transform parent)
+    {
+        var go = new GameObject("Burst");
+        go.transform.SetParent(parent);
+        ParticleSystem ps = go.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = ps.main;
+        main.loop = false;
+        main.duration = 1f;
+        main.startLifetime = 0.6f;
+        main.startSpeed = 4f;
+        main.startSize = 0.18f;
+        main.startColor = Color.white;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = 0.6f;
+        main.stopAction = ParticleSystemStopAction.None;
+
+        ParticleSystem.EmissionModule emission = ps.emission;
+        emission.rateOverTime = 0;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 36) });
+
+        ParticleSystem.ShapeModule shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.25f;
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        var gradient = new Gradient();
+        gradient.SetKeys(
+            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+            new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+        colorOverLifetime.color = gradient;
+
+        var renderer = ps.GetComponent<ParticleSystemRenderer>();
+        renderer.material = new Material(Shader.Find("Sprites/Default"));
+
+        ps.Stop();
+        return ps;
     }
 
     static bool NormalizeGridSize()
