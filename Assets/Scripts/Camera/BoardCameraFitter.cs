@@ -5,7 +5,7 @@ using UnityEngine;
 public class BoardCameraFitter : MonoBehaviour
 {
     [SerializeField] CinemachineCamera targetCamera;
-    [SerializeField] float paddingFactor = 1.15f;
+    [SerializeField] float paddingFactor = 1.28f;
 
     void Start()
     {

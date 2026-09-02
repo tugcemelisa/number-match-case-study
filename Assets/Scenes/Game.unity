@@ -393,7 +393,6 @@ MonoBehaviour:
   burst: {fileID: 1664670767}
   impulseSource: {fileID: 16909117}
   audioSource: {fileID: 16909116}
-  revealClip: {fileID: 0}
 --- !u!4 &16909119
 Transform:
   m_ObjectHideFlags: 0
@@ -2168,7 +2167,7 @@ ParticleSystem:
           m_PostInfinity: 2
           m_RotationOrder: 4
       cycleCount: 1
-      repeatInterval: 0.0001
+      repeatInterval: 0.01
       probability: 1
   SizeModule:
     enabled: 0

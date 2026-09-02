@@ -169,7 +169,8 @@ public class PixelPaintGrid : MonoBehaviour
 
     bool LoadStartFilledState(int index)
     {
-        string key = $"PieceVisibility_{index}";
+        LevelSettings settings = LevelSettings.Instance;
+        string key = $"PieceVisibility_{settings.GridWidth}x{settings.GridHeight}_{index}";
         if (PlayerPrefs.HasKey(key))
             return PlayerPrefs.GetInt(key) == 1;
 

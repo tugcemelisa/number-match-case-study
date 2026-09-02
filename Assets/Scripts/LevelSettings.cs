@@ -27,7 +27,7 @@ public class LevelSettings : MonoBehaviour
             _grid = FindAnyObjectByType<PixelPaintGrid>();
 
         for (int i = 0; i < GridWidth * GridHeight; i++)
-            PlayerPrefs.DeleteKey($"PieceVisibility_{i}");
+            PlayerPrefs.DeleteKey($"PieceVisibility_{GridWidth}x{GridHeight}_{i}");
 
         PlayerPrefs.Save();
 
