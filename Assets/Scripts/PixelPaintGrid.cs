@@ -68,7 +68,10 @@ public class PixelPaintGrid : MonoBehaviour
 
     void SpawnLeftoverPieces(PaintPiece piecePrefab, float pieceSize)
     {
-        float startZ = _board.Height * pieceSize + pieceSize;
+        // Tray sits below the board (negative Z), not above it: dragging a
+        // piece upward onto the board keeps the player's hand/finger clear
+        // of the board instead of covering it while dragging downward.
+        float startZ = -(pieceSize * 2);
         int slot = 0;
 
         for (int i = 0; i < _board.Cells.Length; i++)
@@ -81,7 +84,7 @@ public class PixelPaintGrid : MonoBehaviour
             int col = slot % _board.Width;
             slot++;
 
-            Vector3 position = transform.position + new Vector3(col * pieceSize, 0, startZ + row * pieceSize);
+            Vector3 position = transform.position + new Vector3(col * pieceSize, 0, startZ - row * pieceSize);
             PaintPiece piece = Instantiate(piecePrefab, position, Quaternion.identity, transform);
             piece.transform.localScale *= pieceSize;
 
