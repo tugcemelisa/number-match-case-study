@@ -22,12 +22,14 @@ public class PaintPiece : MonoBehaviour
     public void SetVisible(bool visible)
     {
         meshRenderer.enabled = visible;
+        spriteRenderer.enabled = visible;
         numberText.enabled = !visible;
     }
 
     public void SetTrayVisible()
     {
         meshRenderer.enabled = true;
+        spriteRenderer.enabled = true;
         numberText.enabled = true;
     }
 }
