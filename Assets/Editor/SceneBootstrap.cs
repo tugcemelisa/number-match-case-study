@@ -29,6 +29,8 @@ static class SceneBootstrap
 
         bool changed = false;
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
+        changed |= NormalizeGridSize();
+        changed |= RemoveOrphanedTestObjects();
 
         if (changed)
         {
@@ -46,6 +48,41 @@ static class SceneBootstrap
         go.AddComponent<T>();
         Debug.Log($"SceneBootstrap: added {gameObjectName} ({typeof(T).Name}) to the scene.");
         return true;
+    }
+
+    static bool NormalizeGridSize()
+    {
+        LevelSettings settings = Object.FindAnyObjectByType<LevelSettings>();
+        if (settings == null || (settings.GridWidth == 16 && settings.GridHeight == 16))
+            return false;
+
+        Debug.Log($"SceneBootstrap: LevelSettings grid was {settings.GridWidth}x{settings.GridHeight}, resetting to 16x16.");
+        settings.GridWidth = 16;
+        settings.GridHeight = 16;
+        return true;
+    }
+
+    static bool RemoveOrphanedTestObjects()
+    {
+        bool removedAny = false;
+        foreach (GameObject go in SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            if (go.name.StartsWith("~") || HasMissingScript(go))
+            {
+                Debug.Log($"SceneBootstrap: removing orphaned test object '{go.name}'.");
+                Object.DestroyImmediate(go);
+                removedAny = true;
+            }
+        }
+        return removedAny;
+    }
+
+    static bool HasMissingScript(GameObject go)
+    {
+        foreach (Component component in go.GetComponents<Component>())
+            if (component == null)
+                return true;
+        return false;
     }
 
     static void EnsureBoardMaterial()

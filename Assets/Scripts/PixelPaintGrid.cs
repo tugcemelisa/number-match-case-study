@@ -48,6 +48,13 @@ public class PixelPaintGrid : MonoBehaviour
 
         Mesh cubeMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
         Material boardMaterial = Resources.Load<Material>("BoardInstanced");
+
+        if (cubeMesh == null)
+        {
+            Debug.LogError("PixelPaintGrid: built-in Cube.fbx mesh not found.");
+            yield break;
+        }
+
         if (boardMaterial == null)
         {
             Debug.LogError("PixelPaintGrid: missing Resources/BoardInstanced material.");

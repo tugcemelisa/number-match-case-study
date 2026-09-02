@@ -8,7 +8,7 @@ using UnityEngine;
 // MaterialPropertyBlock array writes rather than Renderer/Material churn.
 public class BoardRenderer
 {
-    public static readonly Color MaskColor = new Color(0.55f, 0.55f, 0.55f, 1f);
+    public static readonly Color MaskColor = new Color(0.32f, 0.32f, 0.34f, 1f);
     const int BatchSize = 1023;
     static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
