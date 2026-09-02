@@ -22,6 +22,7 @@ static class SceneBootstrap
     static void Run()
     {
         EnsureBoardMaterial();
+        EnsureMobileOrientation();
 
         Scene scene = SceneManager.GetActiveScene();
         if (!scene.IsValid() || !scene.isLoaded || scene.name != "Game")
@@ -31,6 +32,7 @@ static class SceneBootstrap
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
         changed |= NormalizeGridSize();
         changed |= RemoveOrphanedTestObjects();
+        changed |= DarkenEnvironment();
 
         if (changed)
         {
@@ -60,6 +62,48 @@ static class SceneBootstrap
         settings.GridWidth = 16;
         settings.GridHeight = 16;
         return true;
+    }
+
+    static void EnsureMobileOrientation()
+    {
+        if (PlayerSettings.defaultInterfaceOrientation == UIOrientation.Portrait)
+            return;
+
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
+        PlayerSettings.allowedAutorotateToPortrait = true;
+        PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+        PlayerSettings.allowedAutorotateToLandscapeLeft = false;
+        PlayerSettings.allowedAutorotateToLandscapeRight = false;
+        Debug.Log("SceneBootstrap: locked default interface orientation to Portrait for mobile.");
+    }
+
+    static bool DarkenEnvironment()
+    {
+        bool changed = false;
+
+        Camera main = Camera.main;
+        if (main != null && (main.clearFlags != CameraClearFlags.SolidColor || main.backgroundColor != Color.black))
+        {
+            main.clearFlags = CameraClearFlags.SolidColor;
+            main.backgroundColor = Color.black;
+            changed = true;
+        }
+
+        GameObject plane = GameObject.Find("Plane");
+        if (plane != null)
+        {
+            MeshRenderer planeRenderer = plane.GetComponent<MeshRenderer>();
+            if (planeRenderer != null && planeRenderer.enabled)
+            {
+                planeRenderer.enabled = false;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            Debug.Log("SceneBootstrap: set camera background to black and hid the ground plane's renderer (collider kept for drag raycasts) so masked gray cells read clearly against the environment.");
+
+        return changed;
     }
 
     static bool RemoveOrphanedTestObjects()
