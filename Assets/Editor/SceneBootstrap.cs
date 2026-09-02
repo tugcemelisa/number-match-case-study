@@ -42,6 +42,7 @@ static class SceneBootstrap
         changed |= EnsureComponent<FpsCounter>("Fps Counter");
         changed |= EnsureDragDropController();
         changed |= EnsureRevealEffects();
+        changed |= FixRevealBurstPlayOnAwake();
         changed |= NormalizeGridSize();
         changed |= RemoveOrphanedTestObjects();
         changed |= DarkenEnvironment();
@@ -120,6 +121,25 @@ static class SceneBootstrap
         return true;
     }
 
+    // The burst particle system used to be left at ParticleSystem's default
+    // playOnAwake=true, so it fired once, unprompted, the instant Play mode
+    // started - looking like a phantom reveal before the player did anything.
+    static bool FixRevealBurstPlayOnAwake()
+    {
+        RevealEffects effects = Object.FindAnyObjectByType<RevealEffects>();
+        if (effects == null)
+            return false;
+
+        ParticleSystem burst = effects.GetComponentInChildren<ParticleSystem>(true);
+        if (burst == null || !burst.main.playOnAwake)
+            return false;
+
+        ParticleSystem.MainModule main = burst.main;
+        main.playOnAwake = false;
+        Debug.Log("SceneBootstrap: fixed Reveal Effects burst particle system firing on scene load (playOnAwake was true).");
+        return true;
+    }
+
     static ParticleSystem CreateBurstParticleSystem(Transform parent)
     {
         var go = new GameObject("Burst");
@@ -127,6 +147,7 @@ static class SceneBootstrap
         ParticleSystem ps = go.AddComponent<ParticleSystem>();
 
         ParticleSystem.MainModule main = ps.main;
+        main.playOnAwake = false;
         main.loop = false;
         main.duration = 1f;
         main.startLifetime = 0.6f;
