@@ -20,8 +20,6 @@ public class LevelSettings : MonoBehaviour
 
     private PixelPaintGrid _grid;
 
-    public Texture2D GetPaintingSprite() => SourceImage;
-
     [ContextMenu("Reset Painting")]
     public void ResetPainting()
     {
