@@ -7,6 +7,8 @@ Shader "Custom/BoardInstanced"
         _MaskColor ("Mask Color", Color) = (0.32, 0.32, 0.34, 1)
         _RimColor ("Rim Glow Color", Color) = (1.6, 1.2, 0.4, 1)
         _DissolveEdge ("Dissolve Edge Width", Range(0.01, 0.3)) = 0.09
+        _GridLineColor ("Grid Line Color", Color) = (0.08, 0.03, 0.18, 1)
+        _GridLineWidth ("Grid Line Width", Range(0.0, 0.15)) = 0.045
     }
     SubShader
     {
@@ -47,6 +49,8 @@ Shader "Custom/BoardInstanced"
             float4 _MaskColor;
             float4 _RimColor;
             float _DissolveEdge;
+            float4 _GridLineColor;
+            float _GridLineWidth;
 
             UNITY_INSTANCING_BUFFER_START(Props)
                 UNITY_DEFINE_INSTANCED_PROP(float4, _TrueColor)
@@ -102,6 +106,13 @@ Shader "Custom/BoardInstanced"
                     float4 atlasSample = SAMPLE_TEXTURE2D(_NumberAtlas, sampler_NumberAtlas, atlasUV);
                     float numberAlpha = atlasSample.a * (1 - revealed) * (1 - saturate(progress));
                     color = lerp(color, atlasSample.rgb, numberAlpha);
+
+                    // Thin dark line at each cell's edge, like a Sudoku
+                    // grid, so masked cells read as individual squares
+                    // instead of loose floating numbers.
+                    float edgeDist = min(min(localUV.x, 1 - localUV.x), min(localUV.y, 1 - localUV.y));
+                    float gridLine = 1 - smoothstep(0, _GridLineWidth, edgeDist);
+                    color = lerp(color, _GridLineColor.rgb, gridLine);
                 }
 
                 return half4(color, 1);

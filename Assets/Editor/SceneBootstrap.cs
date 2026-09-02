@@ -47,6 +47,7 @@ static class SceneBootstrap
         changed |= RemoveOrphanedTestObjects();
         changed |= DarkenEnvironment();
         changed |= EnsureGradientBackground();
+        changed |= RemoveBoardFrame();
 
         if (changed)
         {
@@ -277,6 +278,20 @@ static class SceneBootstrap
         background.GetComponent<MeshRenderer>().sharedMaterial = material;
 
         Debug.Log("SceneBootstrap: added radial gradient Background plane to the scene.");
+        return true;
+    }
+
+    // Superseded by grid lines baked directly into the board shader (see
+    // BoardInstanced.shader's _GridLineColor) - this just clears out the
+    // separate frame plane object from earlier in development.
+    static bool RemoveBoardFrame()
+    {
+        GameObject existing = GameObject.Find("Board Frame");
+        if (existing == null)
+            return false;
+
+        Object.DestroyImmediate(existing);
+        Debug.Log("SceneBootstrap: removed the old Board Frame plane object (replaced by shader grid lines).");
         return true;
     }
 
