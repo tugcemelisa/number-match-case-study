@@ -54,6 +54,49 @@ public class PaintPiece : MonoBehaviour
         _feedbackRoutine = StartCoroutine(RejectAndReturnRoutine());
     }
 
+    // A correct drop already changed the game/board state (TryPlacePiece
+    // already ran) - this just delays this tray object's own destruction
+    // until it visually snaps into the socket and does a small landing
+    // pop, instead of vanishing the instant it's released.
+    public void PlayCorrectPlacement(Vector3 targetPosition)
+    {
+        if (_feedbackRoutine != null)
+            StopCoroutine(_feedbackRoutine);
+        _feedbackRoutine = StartCoroutine(CorrectPlacementRoutine(targetPosition));
+    }
+
+    IEnumerator CorrectPlacementRoutine(Vector3 targetPosition)
+    {
+        Vector3 baseScale = transform.localScale;
+
+        const float snapDuration = 0.16f;
+        Vector3 from = transform.position;
+        float t = 0f;
+        while (t < snapDuration)
+        {
+            t += Time.deltaTime;
+            float eased = 1f - Mathf.Pow(1f - Mathf.Clamp01(t / snapDuration), 3f);
+            transform.position = Vector3.Lerp(from, targetPosition, eased);
+            yield return null;
+        }
+        transform.position = targetPosition;
+
+        const float popDuration = 0.18f;
+        t = 0f;
+        while (t < popDuration)
+        {
+            t += Time.deltaTime;
+            float t01 = t / popDuration;
+            float scale = t01 < 0.5f
+                ? Mathf.Lerp(1f, 1.12f, t01 / 0.5f)
+                : Mathf.Lerp(1.12f, 0.96f, (t01 - 0.5f) / 0.5f);
+            transform.localScale = baseScale * scale;
+            yield return null;
+        }
+
+        Destroy(gameObject);
+    }
+
     IEnumerator RejectAndReturnRoutine()
     {
         Vector3 startPos = transform.position;

@@ -99,17 +99,27 @@ public class DragDropController : MonoBehaviour
         _draggedPiece = null;
 
         bool placed = false;
+        Vector3 cellWorldPosition = default;
 
         if (TryGetGroundPoint(screenPos, out Vector3 groundPoint))
         {
             Vector3 local = groundPoint - grid.transform.position;
             if (grid.Board.TryGetCellIndex(local, out int cellIndex))
+            {
                 placed = grid.TryPlacePiece(cellIndex, piece.Number);
+                if (placed)
+                    cellWorldPosition = grid.transform.position + grid.Board.GetCellLocalPosition(cellIndex);
+            }
         }
 
         if (placed)
         {
-            Destroy(piece.gameObject);
+            // The actual game-state change (fill, reveal, particles/audio)
+            // already happened above via TryPlacePiece - this just delays
+            // the tray object's own destruction until after it visually
+            // snaps into the socket and does a small landing pop, instead
+            // of vanishing the instant it's dropped.
+            piece.PlayCorrectPlacement(cellWorldPosition);
         }
         else
         {
