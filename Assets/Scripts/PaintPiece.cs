@@ -30,7 +30,14 @@ public class PaintPiece : MonoBehaviour
 
     private void SetColor(Color color)
     {
-        meshRenderer.material.color = new Color(color.r, color.g, color.b, 1);
+        Material mat = meshRenderer.material;
+        mat.color = new Color(color.r, color.g, color.b, 1);
+        // Glossy "premium tile" look: a real specular highlight from the
+        // scene light instead of a flat matte color.
+        if (mat.HasProperty("_Smoothness"))
+            mat.SetFloat("_Smoothness", 0.75f);
+        if (mat.HasProperty("_Metallic"))
+            mat.SetFloat("_Metallic", 0.15f);
         spriteRenderer.color = new Color(color.r, color.g, color.b, 0.5f);
     }
 

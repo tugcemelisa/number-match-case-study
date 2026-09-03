@@ -51,6 +51,7 @@ static class SceneBootstrap
         changed |= RemoveBoardFrame();
         changed |= EnsureBoardPlatformFrame();
         changed |= EnsureTrayPlatform();
+        changed |= EnsureShowcaseSourceImage();
 
         if (changed)
         {
@@ -362,6 +363,94 @@ static class SceneBootstrap
 
         Debug.Log("SceneBootstrap: added Tray Platform backing plate under the tray pieces.");
         return true;
+    }
+
+    const string ShowcaseImagePath = "Assets/Textures/showcase.png";
+
+    // The project shipped with a placeholder "rainbow.png" source image
+    // that's literally solid horizontal stripes - one color per row - so
+    // every masked cell in an entire row shares the same number, which is
+    // exactly why the board reads as a debug matrix instead of a puzzle.
+    // The board-generation/color-quantization code is untouched here;
+    // swapping in an image with actual spatial variation is enough to
+    // make the *same* procedural system produce a mixed, varied layout.
+    static bool EnsureShowcaseSourceImage()
+    {
+        LevelSettings settings = Object.FindAnyObjectByType<LevelSettings>();
+        if (settings == null || (settings.SourceImage != null && settings.SourceImage.name == "showcase"))
+            return false;
+
+        Texture2D showcase = AssetDatabase.LoadAssetAtPath<Texture2D>(ShowcaseImagePath);
+        if (showcase == null)
+        {
+            Directory.CreateDirectory("Assets/Textures");
+            Texture2D generated = GenerateShowcaseTexture(256);
+            File.WriteAllBytes(ShowcaseImagePath, generated.EncodeToPNG());
+            Object.DestroyImmediate(generated);
+            AssetDatabase.ImportAsset(ShowcaseImagePath);
+
+            var importer = (TextureImporter)AssetImporter.GetAtPath(ShowcaseImagePath);
+            importer.isReadable = true;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+
+            showcase = AssetDatabase.LoadAssetAtPath<Texture2D>(ShowcaseImagePath);
+        }
+
+        var serialized = new SerializedObject(settings);
+        serialized.FindProperty("SourceImage").objectReferenceValue = showcase;
+        serialized.ApplyModifiedProperties();
+
+        Debug.Log("SceneBootstrap: switched LevelSettings.SourceImage from the striped rainbow.png placeholder to a generated showcase pattern with varied regions.");
+        return true;
+    }
+
+    static Texture2D GenerateShowcaseTexture(int size)
+    {
+        Color[] palette =
+        {
+            new Color(0.90f, 0.20f, 0.25f),
+            new Color(0.95f, 0.45f, 0.15f),
+            new Color(0.95f, 0.80f, 0.15f),
+            new Color(0.60f, 0.85f, 0.20f),
+            new Color(0.20f, 0.75f, 0.35f),
+            new Color(0.15f, 0.75f, 0.65f),
+            new Color(0.20f, 0.70f, 0.90f),
+            new Color(0.25f, 0.45f, 0.90f),
+            new Color(0.45f, 0.30f, 0.85f),
+            new Color(0.65f, 0.25f, 0.80f),
+            new Color(0.90f, 0.25f, 0.70f),
+            new Color(0.95f, 0.55f, 0.75f),
+        };
+
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false) { name = "showcase" };
+        var pixels = new Color[size * size];
+        Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+        float maxDist = size * 0.5f;
+        int ringCount = palette.Length;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center.x;
+                float dy = y - center.y;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy) / maxDist;
+                float angle = Mathf.Atan2(dy, dx);
+
+                // A gentle angle-based wobble on the ring boundaries so the
+                // pattern reads as an organic mandala/target shape rather
+                // than perfectly mathematical circles.
+                float wobble = Mathf.Sin(angle * 5f) * 0.025f;
+                int ring = Mathf.Clamp(Mathf.FloorToInt((dist + wobble) * ringCount), 0, ringCount - 1);
+                pixels[y * size + x] = palette[ring];
+            }
+        }
+
+        tex.SetPixels(pixels);
+        tex.Apply();
+        return tex;
     }
 
     static bool RemoveOrphanedTestObjects()

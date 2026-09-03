@@ -847,7 +847,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelSettings
   VisibilityRate: 0.8
-  SourceImage: {fileID: 2800000, guid: f62366426df5d4bb897b4adaf3e6eba0, type: 3}
+  SourceImage: {fileID: 2800000, guid: da41a75a1e50f644d821c70f9aed2260, type: 3}
   PiecePrefab: {fileID: 4079824865340138946, guid: c11be17e656b3447199a3fed1505d2cc, type: 3}
   GridWidth: 16
   GridHeight: 16
