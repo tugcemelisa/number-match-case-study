@@ -13,7 +13,7 @@ public class BoardPlatformFrame : MonoBehaviour
     [SerializeField] Transform left;
     [SerializeField] Transform right;
 
-    [SerializeField] float thickness = 0.6f;
+    [SerializeField] float thickness = 0.9f;
     [SerializeField] float yPosition = -0.15f;
 
     void Start()

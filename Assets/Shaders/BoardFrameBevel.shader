@@ -5,8 +5,8 @@ Shader "Custom/BoardFrameBevel"
     // chunky raised ledge even under a perfectly top-down camera.
     Properties
     {
-        _BaseColor ("Base Color", Color) = (0.16, 0.12, 0.27, 1)
-        _HighlightColor ("Highlight Color", Color) = (0.36, 0.29, 0.52, 1)
+        _BaseColor ("Base Color", Color) = (0.19, 0.14, 0.32, 1)
+        _HighlightColor ("Highlight Color", Color) = (0.46, 0.37, 0.68, 1)
         _ShadowColor ("Shadow Color", Color) = (0.03, 0.02, 0.07, 1)
     }
     SubShader

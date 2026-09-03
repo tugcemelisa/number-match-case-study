@@ -1,4 +1,3 @@
-using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
 
@@ -17,7 +16,7 @@ public class RevealEffects : MonoBehaviour
     AudioClip _rejectClip;
     AudioClip _placeClip;
     AudioClip _revealClip;
-    TMP_FontAsset _popupFont;
+    AudioClip _boardCompleteClip;
 
     void Awake()
     {
@@ -25,7 +24,8 @@ public class RevealEffects : MonoBehaviour
         _rejectClip = ProceduralSfx.CreateBlip(300f, 150f, 0.18f, 0.45f);
         _placeClip = ProceduralSfx.CreateBlip(600f, 950f, 0.12f, 0.5f);
         _revealClip = ProceduralSfx.CreateChime(new[] { 523.25f, 659.25f, 783.99f, 1046.5f }, 0.11f, 0.4f);
-        _popupFont = Resources.Load<TMP_FontAsset>("Bangers SDF");
+        _boardCompleteClip = ProceduralSfx.CreateChime(
+            new[] { 523.25f, 659.25f, 783.99f, 1046.5f, 1318.5f, 1568f }, 0.1f, 0.55f);
     }
 
     // Picking a piece up out of the tray.
@@ -53,7 +53,7 @@ public class RevealEffects : MonoBehaviour
             burst.transform.position = worldPosition + Vector3.up * 0.4f;
             ParticleSystem.MainModule main = burst.main;
             main.startColor = color;
-            burst.Emit(8);
+            burst.Emit(10);
         }
 
         if (audioSource != null && _placeClip != null)
@@ -77,6 +77,29 @@ public class RevealEffects : MonoBehaviour
         if (audioSource != null && _revealClip != null)
             audioSource.PlayOneShot(_revealClip);
 
-        SuccessPopup.Spawn(_popupFont, worldPosition, color);
+        GameHud.Instance?.PlayGroupSuccess();
+    }
+
+    // The whole board just finished - the biggest moment, so a stronger
+    // burst/shake/sound and the "Completed!" center popup instead of the
+    // normal per-group one.
+    public void PlayBoardComplete(Vector3 worldPosition)
+    {
+        if (burst != null)
+        {
+            burst.transform.position = worldPosition + Vector3.up * 0.6f;
+            ParticleSystem.MainModule main = burst.main;
+            main.startColor = Color.white;
+            burst.Emit(40);
+            burst.Play();
+        }
+
+        if (impulseSource != null)
+            impulseSource.GenerateImpulseAtPositionWithVelocity(worldPosition, Vector3.down * 0.7f);
+
+        if (audioSource != null && _boardCompleteClip != null)
+            audioSource.PlayOneShot(_boardCompleteClip);
+
+        GameHud.Instance?.PlayBoardComplete();
     }
 }

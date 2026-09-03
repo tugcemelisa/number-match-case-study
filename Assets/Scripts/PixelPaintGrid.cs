@@ -37,6 +37,9 @@ public class PixelPaintGrid : MonoBehaviour
 
             if (revealEffects != null)
                 revealEffects.PlayGroupComplete(GetGroupCentroidWorldPosition(number), cellColor);
+
+            if (_board.IsFullyRevealed())
+                StartCoroutine(PlayBoardCompleteDelayed());
         }
         else if (revealEffects != null)
         {
@@ -44,6 +47,21 @@ public class PixelPaintGrid : MonoBehaviour
         }
 
         return true;
+    }
+
+    // A short anticipation pause after the final group's own reveal
+    // starts, so the full-board celebration reads as a bigger, separate
+    // beat rather than overlapping it.
+    IEnumerator PlayBoardCompleteDelayed()
+    {
+        yield return new WaitForSeconds(0.5f);
+
+        if (revealEffects != null)
+        {
+            Vector3 center = transform.position + new Vector3(
+                (_board.Width - 1) * _board.PieceSize * 0.5f, 0f, (_board.Height - 1) * _board.PieceSize * 0.5f);
+            revealEffects.PlayBoardComplete(center);
+        }
     }
 
     Vector3 GetGroupCentroidWorldPosition(int number)

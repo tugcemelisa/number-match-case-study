@@ -40,6 +40,7 @@ static class SceneBootstrap
         bool changed = false;
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
         changed |= EnsureComponent<FpsCounter>("Fps Counter");
+        changed |= EnsureComponent<GameHud>("Game Hud");
         changed |= EnsureDragDropController();
         changed |= EnsureRevealEffects();
         changed |= FixRevealBurstPlayOnAwake();

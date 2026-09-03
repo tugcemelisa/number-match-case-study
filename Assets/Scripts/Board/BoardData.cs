@@ -90,6 +90,14 @@ public class BoardData
         return true;
     }
 
+    public bool IsFullyRevealed()
+    {
+        foreach (Cell cell in Cells)
+            if (!cell.revealed)
+                return false;
+        return true;
+    }
+
     public void RevealGroup(int number) => RevealGroup(NumberToCellIndices[number]);
 
     void RevealGroup(List<int> cellIndices)

@@ -81,18 +81,34 @@ public class PaintPiece : MonoBehaviour
         }
         transform.position = targetPosition;
 
-        const float popDuration = 0.18f;
+        // TAK: quick overshoot up, then a slight compress - the "impact"
+        // moment before the cube cracks apart.
+        const float popUpDuration = 0.07f;
         t = 0f;
-        while (t < popDuration)
+        while (t < popUpDuration)
         {
             t += Time.deltaTime;
-            float t01 = t / popDuration;
-            float scale = t01 < 0.5f
-                ? Mathf.Lerp(1f, 1.12f, t01 / 0.5f)
-                : Mathf.Lerp(1.12f, 0.96f, (t01 - 0.5f) / 0.5f);
-            transform.localScale = baseScale * scale;
+            transform.localScale = baseScale * Mathf.Lerp(1f, 1.12f, t / popUpDuration);
             yield return null;
         }
+
+        const float popDownDuration = 0.06f;
+        t = 0f;
+        while (t < popDownDuration)
+        {
+            t += Time.deltaTime;
+            transform.localScale = baseScale * Mathf.Lerp(1.12f, 0.94f, t / popDownDuration);
+            yield return null;
+        }
+
+        // Crack: the cube itself disappears and scatters into a few small
+        // tinted fragments instead of just vanishing - the socket stays in
+        // its neutral "filled" state (see BoardInstanced.shader's _Filled
+        // handling), no true color leaks here.
+        meshRenderer.enabled = false;
+        spriteRenderer.enabled = false;
+        numberText.enabled = false;
+        CrackFragments.Spawn(targetPosition, _baseColor, baseScale.x);
 
         Destroy(gameObject);
     }

@@ -9,7 +9,7 @@ Shader "Custom/BoardInstanced"
         _DissolveEdge ("Dissolve Edge Width", Range(0.01, 0.3)) = 0.09
         _GapColor ("Cell Gap Color", Color) = (0.08, 0.06, 0.15, 1)
         _ButtonMargin ("Cell Gap Width", Range(0.0, 0.2)) = 0.035
-        _ButtonRadius ("Cell Corner Radius", Range(0.0, 0.25)) = 0.08
+        _ButtonRadius ("Cell Corner Radius", Range(0.0, 0.25)) = 0.15
     }
     SubShader
     {
@@ -125,11 +125,21 @@ Shader "Custom/BoardInstanced"
                     // player what they've already placed, with no true
                     // color leaking before the whole group completes.
                     float edgeDist = boxHalf - max(abs(p.x), abs(p.y));
-                    float recessed = lerp(0.6, 1.0, smoothstep(0.0, 0.3, edgeDist));
+                    float recessed = lerp(0.42, 1.0, smoothstep(0.0, 0.34, edgeDist));
                     float lightGrad = saturate(0.5 - (p.x + p.y));
-                    float raised = lerp(0.88, 1.18, lightGrad);
+                    float raised = lerp(0.85, 1.28, lightGrad);
                     float placed = saturate(filled + revealed);
                     color *= lerp(recessed, raised, placed);
+
+                    // Glossy bevel lip: a thin bright line hugging the
+                    // top-left of the rounded edge and a thin dark line
+                    // along the bottom-right, like a real molded button
+                    // catching light - independent of fill state so even
+                    // empty sockets read as more than a flat rectangle.
+                    float rimBand = 1 - smoothstep(0.0, 0.045, edgeDist);
+                    float rimLight = saturate(0.5 - (p.x + p.y) * 1.4);
+                    color += rimBand * rimLight * 0.22;
+                    color -= rimBand * (1 - rimLight) * 0.16;
 
                     float2 atlasUV = cellUV.xy + localUV * cellUV.zw;
                     float4 atlasSample = SAMPLE_TEXTURE2D(_NumberAtlas, sampler_NumberAtlas, atlasUV);

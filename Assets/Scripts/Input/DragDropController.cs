@@ -120,9 +120,11 @@ public class DragDropController : MonoBehaviour
             // snaps into the socket and does a small landing pop, instead
             // of vanishing the instant it's dropped.
             piece.PlayCorrectPlacement(cellWorldPosition);
+            GameHud.Instance?.RegisterCorrectPlacement();
         }
         else
         {
+            GameHud.Instance?.RegisterWrongPlacement();
             piece.PlayRejectAndReturn();
             _effects?.PlayReject();
         }
