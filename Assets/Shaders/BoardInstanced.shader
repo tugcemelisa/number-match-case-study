@@ -102,6 +102,15 @@ Shader "Custom/BoardInstanced"
 
                 if (normalWS.y > 0.9)
                 {
+                    float edgeDist = min(min(localUV.x, 1 - localUV.x), min(localUV.y, 1 - localUV.y));
+
+                    // Subtle inset shading: the cell interior dims slightly
+                    // toward its edges, inside the grid line, so masked
+                    // cells read as shallow sockets waiting for a piece to
+                    // drop into rather than flat floating squares.
+                    float socket = lerp(0.78, 1.0, smoothstep(0.0, 0.32, edgeDist));
+                    color *= socket;
+
                     float2 atlasUV = cellUV.xy + localUV * cellUV.zw;
                     float4 atlasSample = SAMPLE_TEXTURE2D(_NumberAtlas, sampler_NumberAtlas, atlasUV);
                     float numberAlpha = atlasSample.a * (1 - revealed) * (1 - saturate(progress));
@@ -110,7 +119,6 @@ Shader "Custom/BoardInstanced"
                     // Thin dark line at each cell's edge, like a Sudoku
                     // grid, so masked cells read as individual squares
                     // instead of loose floating numbers.
-                    float edgeDist = min(min(localUV.x, 1 - localUV.x), min(localUV.y, 1 - localUV.y));
                     float gridLine = 1 - smoothstep(0, _GridLineWidth, edgeDist);
                     color = lerp(color, _GridLineColor.rgb, gridLine);
                 }
