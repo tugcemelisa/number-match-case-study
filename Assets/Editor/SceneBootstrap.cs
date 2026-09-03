@@ -48,6 +48,8 @@ static class SceneBootstrap
         changed |= DarkenEnvironment();
         changed |= EnsureGradientBackground();
         changed |= RemoveBoardFrame();
+        changed |= EnsureBoardPlatformFrame();
+        changed |= EnsureTrayPlatform();
 
         if (changed)
         {
@@ -292,6 +294,72 @@ static class SceneBootstrap
 
         Object.DestroyImmediate(existing);
         Debug.Log("SceneBootstrap: removed the old Board Frame plane object (replaced by shader grid lines).");
+        return true;
+    }
+
+    static bool EnsureBoardPlatformFrame()
+    {
+        if (Object.FindAnyObjectByType<BoardPlatformFrame>() != null)
+            return false;
+
+        Shader shader = Shader.Find("Custom/BoardFrameBevel");
+        if (shader == null)
+        {
+            Debug.LogError("SceneBootstrap: could not find Custom/BoardFrameBevel shader.");
+            return false;
+        }
+
+        var material = new Material(shader) { name = "BoardFrameBevel" };
+
+        var root = new GameObject("Board Platform Frame");
+        Transform top = CreatePlatformStrip("Top", root.transform, material);
+        Transform bottom = CreatePlatformStrip("Bottom", root.transform, material);
+        Transform left = CreatePlatformStrip("Left", root.transform, material);
+        Transform right = CreatePlatformStrip("Right", root.transform, material);
+
+        BoardPlatformFrame frame = root.AddComponent<BoardPlatformFrame>();
+        var serialized = new SerializedObject(frame);
+        serialized.FindProperty("top").objectReferenceValue = top;
+        serialized.FindProperty("bottom").objectReferenceValue = bottom;
+        serialized.FindProperty("left").objectReferenceValue = left;
+        serialized.FindProperty("right").objectReferenceValue = right;
+        serialized.ApplyModifiedProperties();
+
+        Debug.Log("SceneBootstrap: added Board Platform Frame (fake-3D beveled border) around the board.");
+        return true;
+    }
+
+    static Transform CreatePlatformStrip(string name, Transform parent, Material material)
+    {
+        GameObject strip = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        strip.name = name;
+        strip.transform.SetParent(parent);
+        Object.DestroyImmediate(strip.GetComponent<Collider>());
+        strip.GetComponent<MeshRenderer>().sharedMaterial = material;
+        return strip.transform;
+    }
+
+    static bool EnsureTrayPlatform()
+    {
+        if (Object.FindAnyObjectByType<TrayPlatform>() != null)
+            return false;
+
+        Shader shader = Shader.Find("Custom/BoardFrameBevel");
+        if (shader == null)
+        {
+            Debug.LogError("SceneBootstrap: could not find Custom/BoardFrameBevel shader.");
+            return false;
+        }
+
+        var material = new Material(shader) { name = "TrayPlatformBevel" };
+
+        GameObject plate = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        plate.name = "Tray Platform";
+        Object.DestroyImmediate(plate.GetComponent<Collider>());
+        plate.GetComponent<MeshRenderer>().sharedMaterial = material;
+        plate.AddComponent<TrayPlatform>();
+
+        Debug.Log("SceneBootstrap: added Tray Platform backing plate under the tray pieces.");
         return true;
     }
 

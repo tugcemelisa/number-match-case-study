@@ -21,6 +21,7 @@ public class BoardRenderer
     static readonly int TrueColorId = Shader.PropertyToID("_TrueColor");
     static readonly int CellUVId = Shader.PropertyToID("_CellUV");
     static readonly int RevealProgressId = Shader.PropertyToID("_RevealProgress");
+    static readonly int FilledId = Shader.PropertyToID("_Filled");
     static readonly int NumberAtlasId = Shader.PropertyToID("_NumberAtlas");
     static readonly int NoiseTexId = Shader.PropertyToID("_NoiseTex");
     static readonly int MaskColorId = Shader.PropertyToID("_MaskColor");
@@ -34,6 +35,7 @@ public class BoardRenderer
     readonly Vector4[][] _batchTrueColor;
     readonly Vector4[][] _batchCellUV;
     readonly float[][] _batchRevealProgress;
+    readonly float[][] _batchFilled;
     readonly MaterialPropertyBlock[] _batchBlocks;
     readonly bool[] _batchDirty;
 
@@ -55,6 +57,7 @@ public class BoardRenderer
         _batchTrueColor = new Vector4[batchCount][];
         _batchCellUV = new Vector4[batchCount][];
         _batchRevealProgress = new float[batchCount][];
+        _batchFilled = new float[batchCount][];
         _batchBlocks = new MaterialPropertyBlock[batchCount];
         _batchDirty = new bool[batchCount];
 
@@ -70,6 +73,7 @@ public class BoardRenderer
             _batchTrueColor[b] = new Vector4[count];
             _batchCellUV[b] = new Vector4[count];
             _batchRevealProgress[b] = new float[count];
+            _batchFilled[b] = new float[count];
             _batchBlocks[b] = new MaterialPropertyBlock();
 
             for (int i = 0; i < count; i++)
@@ -78,6 +82,7 @@ public class BoardRenderer
             _batchBlocks[b].SetVectorArray(TrueColorId, _batchTrueColor[b]);
             _batchBlocks[b].SetVectorArray(CellUVId, _batchCellUV[b]);
             _batchBlocks[b].SetFloatArray(RevealProgressId, _batchRevealProgress[b]);
+            _batchBlocks[b].SetFloatArray(FilledId, _batchFilled[b]);
         }
     }
 
@@ -89,6 +94,7 @@ public class BoardRenderer
         _batchTrueColor[batch][localIndex] = cell.color;
         _batchCellUV[batch][localIndex] = new Vector4(cell.x * cellDu, cell.z * cellDv, cellDu, cellDv);
         _batchRevealProgress[batch][localIndex] = cell.revealed ? 1f : 0f;
+        _batchFilled[batch][localIndex] = cell.filled ? 1f : 0f;
     }
 
     // Instant on/off (used for pre-filled groups at board build time and as
@@ -103,6 +109,18 @@ public class BoardRenderer
         _batchDirty[batch] = true;
     }
 
+    // Marks a cell as filled so the shader can highlight it (a bright ring
+    // instead of the usual dark grid line) - lets the player see which
+    // cells already registered a correct placement without leaking the
+    // group's true color before the whole group completes.
+    public void SetFilled(int cellIndex)
+    {
+        int batch = cellIndex / BatchSize;
+        int local = cellIndex % BatchSize;
+        _batchFilled[batch][local] = 1f;
+        _batchDirty[batch] = true;
+    }
+
     public void DrawAll()
     {
         for (int b = 0; b < _batchMatrices.Length; b++)
@@ -110,6 +128,7 @@ public class BoardRenderer
             if (_batchDirty[b])
             {
                 _batchBlocks[b].SetFloatArray(RevealProgressId, _batchRevealProgress[b]);
+                _batchBlocks[b].SetFloatArray(FilledId, _batchFilled[b]);
                 _batchDirty[b] = false;
             }
 

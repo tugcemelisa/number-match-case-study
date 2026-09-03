@@ -25,6 +25,8 @@ public class PixelPaintGrid : MonoBehaviour
         if (_board == null || !_board.TryFillCell(cellIndex, number))
             return false;
 
+        _boardRenderer.SetFilled(cellIndex);
+
         Vector3 cellWorldPosition = transform.position + _board.GetCellLocalPosition(cellIndex);
         Color cellColor = _board.Cells[cellIndex].color;
 
@@ -145,6 +147,15 @@ public class PixelPaintGrid : MonoBehaviour
             piece.TrayPosition = position;
 
             _leftoverPieces.Add(piece);
+        }
+
+        if (slot > 0)
+        {
+            int lastRow = (slot - 1) / _board.Width;
+            int maxCol = Mathf.Min(slot, _board.Width) - 1;
+            TrayPlatform trayPlatform = FindAnyObjectByType<TrayPlatform>();
+            if (trayPlatform != null)
+                trayPlatform.Fit(transform.position, 0f, maxCol * pieceSize, startZ - lastRow * pieceSize, startZ);
         }
     }
 

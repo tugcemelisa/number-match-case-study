@@ -7,8 +7,9 @@ Shader "Custom/BoardInstanced"
         _MaskColor ("Mask Color", Color) = (0.32, 0.32, 0.34, 1)
         _RimColor ("Rim Glow Color", Color) = (1.6, 1.2, 0.4, 1)
         _DissolveEdge ("Dissolve Edge Width", Range(0.01, 0.3)) = 0.09
-        _GridLineColor ("Grid Line Color", Color) = (0.03, 0.01, 0.08, 1)
-        _GridLineWidth ("Grid Line Width", Range(0.0, 0.15)) = 0.06
+        _GapColor ("Cell Gap Color", Color) = (0.08, 0.06, 0.15, 1)
+        _ButtonMargin ("Cell Gap Width", Range(0.0, 0.2)) = 0.035
+        _ButtonRadius ("Cell Corner Radius", Range(0.0, 0.25)) = 0.08
     }
     SubShader
     {
@@ -49,13 +50,15 @@ Shader "Custom/BoardInstanced"
             float4 _MaskColor;
             float4 _RimColor;
             float _DissolveEdge;
-            float4 _GridLineColor;
-            float _GridLineWidth;
+            float4 _GapColor;
+            float _ButtonMargin;
+            float _ButtonRadius;
 
             UNITY_INSTANCING_BUFFER_START(Props)
                 UNITY_DEFINE_INSTANCED_PROP(float4, _TrueColor)
                 UNITY_DEFINE_INSTANCED_PROP(float4, _CellUV)
                 UNITY_DEFINE_INSTANCED_PROP(float, _RevealProgress)
+                UNITY_DEFINE_INSTANCED_PROP(float, _Filled)
             UNITY_INSTANCING_BUFFER_END(Props)
 
             Varyings vert(Attributes IN)
@@ -77,6 +80,7 @@ Shader "Custom/BoardInstanced"
                 float4 trueColor = UNITY_ACCESS_INSTANCED_PROP(Props, _TrueColor);
                 float4 cellUV = UNITY_ACCESS_INSTANCED_PROP(Props, _CellUV);
                 float progress = UNITY_ACCESS_INSTANCED_PROP(Props, _RevealProgress);
+                float filled = UNITY_ACCESS_INSTANCED_PROP(Props, _Filled);
 
                 float3 normalWS = normalize(IN.normalWS);
                 float3 lightDir = normalize(float3(0.3, 0.85, -0.45));
@@ -102,25 +106,37 @@ Shader "Custom/BoardInstanced"
 
                 if (normalWS.y > 0.9)
                 {
-                    float edgeDist = min(min(localUV.x, 1 - localUV.x), min(localUV.y, 1 - localUV.y));
+                    // Each cell is a thin rounded square with a small gap
+                    // to its neighbors, in cell-local space. Signed
+                    // distance to a rounded box: p is -0.5..0.5, boxHalf is
+                    // the cell's half-size after leaving _ButtonMargin as
+                    // the gap.
+                    float2 p = localUV - 0.5;
+                    float boxHalf = 0.5 - _ButtonMargin;
+                    float2 d = abs(p) - (boxHalf - _ButtonRadius);
+                    float dist = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - _ButtonRadius;
+                    float cellMask = 1 - smoothstep(-0.01, 0.01, dist);
 
-                    // Subtle inset shading: the cell interior dims slightly
-                    // toward its edges, inside the grid line, so masked
-                    // cells read as shallow sockets waiting for a piece to
-                    // drop into rather than flat floating squares.
-                    float socket = lerp(0.78, 1.0, smoothstep(0.0, 0.32, edgeDist));
-                    color *= socket;
+                    // An empty cell reads as a recessed socket (dimmer
+                    // toward its edges, like a shallow inset shadow); once
+                    // a piece is placed (or the group reveals) it reads as
+                    // raised instead (brighter, with a soft diagonal
+                    // highlight) - the shading contrast alone tells the
+                    // player what they've already placed, with no true
+                    // color leaking before the whole group completes.
+                    float edgeDist = boxHalf - max(abs(p.x), abs(p.y));
+                    float recessed = lerp(0.6, 1.0, smoothstep(0.0, 0.3, edgeDist));
+                    float lightGrad = saturate(0.5 - (p.x + p.y));
+                    float raised = lerp(0.88, 1.18, lightGrad);
+                    float placed = saturate(filled + revealed);
+                    color *= lerp(recessed, raised, placed);
 
                     float2 atlasUV = cellUV.xy + localUV * cellUV.zw;
                     float4 atlasSample = SAMPLE_TEXTURE2D(_NumberAtlas, sampler_NumberAtlas, atlasUV);
-                    float numberAlpha = atlasSample.a * (1 - revealed) * (1 - saturate(progress));
+                    float numberAlpha = atlasSample.a * (1 - revealed) * (1 - saturate(progress)) * cellMask;
                     color = lerp(color, atlasSample.rgb, numberAlpha);
 
-                    // Thin dark line at each cell's edge, like a Sudoku
-                    // grid, so masked cells read as individual squares
-                    // instead of loose floating numbers.
-                    float gridLine = 1 - smoothstep(0, _GridLineWidth, edgeDist);
-                    color = lerp(color, _GridLineColor.rgb, gridLine);
+                    color = lerp(_GapColor.rgb, color, cellMask);
                 }
 
                 return half4(color, 1);

@@ -1,3 +1,4 @@
+using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
 
@@ -16,6 +17,7 @@ public class RevealEffects : MonoBehaviour
     AudioClip _rejectClip;
     AudioClip _placeClip;
     AudioClip _revealClip;
+    TMP_FontAsset _popupFont;
 
     void Awake()
     {
@@ -23,6 +25,7 @@ public class RevealEffects : MonoBehaviour
         _rejectClip = ProceduralSfx.CreateBlip(300f, 150f, 0.18f, 0.45f);
         _placeClip = ProceduralSfx.CreateBlip(600f, 950f, 0.12f, 0.5f);
         _revealClip = ProceduralSfx.CreateChime(new[] { 523.25f, 659.25f, 783.99f, 1046.5f }, 0.11f, 0.4f);
+        _popupFont = Resources.Load<TMP_FontAsset>("Bangers SDF");
     }
 
     // Picking a piece up out of the tray.
@@ -73,5 +76,7 @@ public class RevealEffects : MonoBehaviour
 
         if (audioSource != null && _revealClip != null)
             audioSource.PlayOneShot(_revealClip);
+
+        SuccessPopup.Spawn(_popupFont, worldPosition, color);
     }
 }
