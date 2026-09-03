@@ -14,6 +14,13 @@ public static class NumberAtlasBaker
 
     public static Texture2D Bake(BoardData board, TMP_FontAsset font)
     {
+        // This is a Dynamic-atlas-population font, so digits it hasn't been
+        // asked to render yet don't have glyph data until generated. Force
+        // every digit to exist up front rather than relying on whatever
+        // happens to already be cached - a fresh checkout (or a cleared
+        // cache) would otherwise bake a blank atlas with no visible numbers.
+        font.TryAddCharacters("0123456789");
+
         // A dark outline keeps numbers legible once cells sit on top of
         // bright/varied revealed colors instead of just the flat gray mask.
         // Set once on the font asset's shared material so both the baked

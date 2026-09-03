@@ -7,8 +7,8 @@ Shader "Custom/BoardInstanced"
         _MaskColor ("Mask Color", Color) = (0.32, 0.32, 0.34, 1)
         _RimColor ("Rim Glow Color", Color) = (1.6, 1.2, 0.4, 1)
         _DissolveEdge ("Dissolve Edge Width", Range(0.01, 0.3)) = 0.09
-        _GridLineColor ("Grid Line Color", Color) = (0.08, 0.03, 0.18, 1)
-        _GridLineWidth ("Grid Line Width", Range(0.0, 0.15)) = 0.045
+        _GridLineColor ("Grid Line Color", Color) = (0.03, 0.01, 0.08, 1)
+        _GridLineWidth ("Grid Line Width", Range(0.0, 0.15)) = 0.06
     }
     SubShader
     {
