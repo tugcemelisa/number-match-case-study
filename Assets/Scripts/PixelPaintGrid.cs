@@ -15,6 +15,11 @@ public class PixelPaintGrid : MonoBehaviour
 
     public BoardData Board => _board;
 
+    // A wrong drop still landed on a real cell - briefly flash that
+    // socket red so the rejection is anchored to a specific place on the
+    // board, not just the returning cube.
+    public void FlashWrongCell(int cellIndex) => _boardRenderer?.SetWrongFlash(cellIndex);
+
     // Attempts to fill the given cell with a piece of the given number.
     // Returns false (no state change) if the cell doesn't exist, is already
     // filled, or doesn't match the piece's number. Once every cell in the

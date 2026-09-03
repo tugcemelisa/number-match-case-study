@@ -59,6 +59,7 @@ Shader "Custom/BoardInstanced"
                 UNITY_DEFINE_INSTANCED_PROP(float4, _CellUV)
                 UNITY_DEFINE_INSTANCED_PROP(float, _RevealProgress)
                 UNITY_DEFINE_INSTANCED_PROP(float, _Filled)
+                UNITY_DEFINE_INSTANCED_PROP(float, _WrongFlashTime)
             UNITY_INSTANCING_BUFFER_END(Props)
 
             Varyings vert(Attributes IN)
@@ -81,6 +82,13 @@ Shader "Custom/BoardInstanced"
                 float4 cellUV = UNITY_ACCESS_INSTANCED_PROP(Props, _CellUV);
                 float progress = UNITY_ACCESS_INSTANCED_PROP(Props, _RevealProgress);
                 float filled = UNITY_ACCESS_INSTANCED_PROP(Props, _Filled);
+                float wrongFlashTime = UNITY_ACCESS_INSTANCED_PROP(Props, _WrongFlashTime);
+
+                // Wrong-drop socket flash: fades out over 0.35s purely from
+                // GPU time, so a single one-time CPU write (the moment the
+                // wrong drop happens) is enough - no per-frame updates.
+                float wrongFlash = saturate(1.0 - (_Time.y - wrongFlashTime) / 0.35);
+                wrongFlash *= wrongFlash;
 
                 float3 normalWS = normalize(IN.normalWS);
                 float3 lightDir = normalize(float3(0.3, 0.85, -0.45));
@@ -147,6 +155,10 @@ Shader "Custom/BoardInstanced"
                     color = lerp(color, atlasSample.rgb, numberAlpha);
 
                     color = lerp(_GapColor.rgb, color, cellMask);
+
+                    // Wrong-drop flash on top of everything else, clipped
+                    // to this cell's own rounded shape.
+                    color = lerp(color, float3(1.0, 0.2, 0.2), wrongFlash * cellMask);
                 }
 
                 return half4(color, 1);

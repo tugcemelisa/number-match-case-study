@@ -109,6 +109,8 @@ public class DragDropController : MonoBehaviour
                 placed = grid.TryPlacePiece(cellIndex, piece.Number);
                 if (placed)
                     cellWorldPosition = grid.transform.position + grid.Board.GetCellLocalPosition(cellIndex);
+                else
+                    grid.FlashWrongCell(cellIndex);
             }
         }
 

@@ -22,6 +22,7 @@ public class BoardRenderer
     static readonly int CellUVId = Shader.PropertyToID("_CellUV");
     static readonly int RevealProgressId = Shader.PropertyToID("_RevealProgress");
     static readonly int FilledId = Shader.PropertyToID("_Filled");
+    static readonly int WrongFlashTimeId = Shader.PropertyToID("_WrongFlashTime");
     static readonly int NumberAtlasId = Shader.PropertyToID("_NumberAtlas");
     static readonly int NoiseTexId = Shader.PropertyToID("_NoiseTex");
     static readonly int MaskColorId = Shader.PropertyToID("_MaskColor");
@@ -36,6 +37,7 @@ public class BoardRenderer
     readonly Vector4[][] _batchCellUV;
     readonly float[][] _batchRevealProgress;
     readonly float[][] _batchFilled;
+    readonly float[][] _batchWrongFlashTime;
     readonly MaterialPropertyBlock[] _batchBlocks;
     readonly bool[] _batchDirty;
 
@@ -58,6 +60,7 @@ public class BoardRenderer
         _batchCellUV = new Vector4[batchCount][];
         _batchRevealProgress = new float[batchCount][];
         _batchFilled = new float[batchCount][];
+        _batchWrongFlashTime = new float[batchCount][];
         _batchBlocks = new MaterialPropertyBlock[batchCount];
         _batchDirty = new bool[batchCount];
 
@@ -74,6 +77,9 @@ public class BoardRenderer
             _batchCellUV[b] = new Vector4[count];
             _batchRevealProgress[b] = new float[count];
             _batchFilled[b] = new float[count];
+            _batchWrongFlashTime[b] = new float[count];
+            for (int i = 0; i < count; i++)
+                _batchWrongFlashTime[b][i] = -1000f;
             _batchBlocks[b] = new MaterialPropertyBlock();
 
             for (int i = 0; i < count; i++)
@@ -83,6 +89,7 @@ public class BoardRenderer
             _batchBlocks[b].SetVectorArray(CellUVId, _batchCellUV[b]);
             _batchBlocks[b].SetFloatArray(RevealProgressId, _batchRevealProgress[b]);
             _batchBlocks[b].SetFloatArray(FilledId, _batchFilled[b]);
+            _batchBlocks[b].SetFloatArray(WrongFlashTimeId, _batchWrongFlashTime[b]);
         }
     }
 
@@ -121,6 +128,17 @@ public class BoardRenderer
         _batchDirty[batch] = true;
     }
 
+    // A wrong drop on this cell - the shader fades a red flash out over a
+    // fixed window using GPU time (_Time.y), so this is a one-time write
+    // with no per-frame CPU cost to animate the fade.
+    public void SetWrongFlash(int cellIndex)
+    {
+        int batch = cellIndex / BatchSize;
+        int local = cellIndex % BatchSize;
+        _batchWrongFlashTime[batch][local] = Time.time;
+        _batchDirty[batch] = true;
+    }
+
     public void DrawAll()
     {
         for (int b = 0; b < _batchMatrices.Length; b++)
@@ -129,6 +147,7 @@ public class BoardRenderer
             {
                 _batchBlocks[b].SetFloatArray(RevealProgressId, _batchRevealProgress[b]);
                 _batchBlocks[b].SetFloatArray(FilledId, _batchFilled[b]);
+                _batchBlocks[b].SetFloatArray(WrongFlashTimeId, _batchWrongFlashTime[b]);
                 _batchDirty[b] = false;
             }
 
