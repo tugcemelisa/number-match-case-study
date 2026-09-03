@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using System.IO;
 using TMPro;
 using Unity.Cinemachine;
@@ -7,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TextCore.LowLevel;
+using Object = UnityEngine.Object;
 
 // Editor-only convenience: keeps required manager GameObjects and shared
 // assets present in the project without manual wiring through the Editor
@@ -28,6 +30,15 @@ static class SceneBootstrap
 
     static void Run()
     {
+        // delayCall can fire after Play has already started (e.g. a
+        // recompile queued this call right as Play was entered) - scene
+        // mutation APIs like MarkSceneDirty/SaveScene throw once that
+        // happens, and the resulting exception was derailing PixelPaintGrid's
+        // own Init() for that session. Bail out entirely rather than risk
+        // a half-applied change while playing.
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            return;
+
         EnsureBoardMaterial();
         EnsureNumberFont();
         EnsurePiecePrefabFont();
@@ -41,22 +52,39 @@ static class SceneBootstrap
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
         changed |= EnsureComponent<FpsCounter>("Fps Counter");
         changed |= EnsureComponent<GameHud>("Game Hud");
+        changed |= EnsureComponent<TouchCursor>("Touch Cursor");
         changed |= EnsureDragDropController();
         changed |= EnsureRevealEffects();
         changed |= FixRevealBurstPlayOnAwake();
         changed |= NormalizeGridSize();
         changed |= RemoveOrphanedTestObjects();
+        changed |= RemoveMissingScripts();
         changed |= DarkenEnvironment();
         changed |= EnsureGradientBackground();
         changed |= RemoveBoardFrame();
         changed |= EnsureBoardPlatformFrame();
         changed |= EnsureTrayPlatform();
+        changed |= SyncTrayGap();
         changed |= EnsureShowcaseSourceImage();
+        changed |= EnsureFingerCursorSprites();
 
+        // isPlayingOrWillChangePlaymode above closes most of the race, but
+        // Play can still start in the gap between that check and this
+        // point (the Ensure* calls above aren't instantaneous) - swallow
+        // rather than let a mid-transition exception surface, since the
+        // in-memory changes above already happened either way and the
+        // scene write will simply retry cleanly on the next edit-mode pass.
         if (changed)
         {
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
+            try
+            {
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+            }
+            catch (InvalidOperationException)
+            {
+                Debug.Log("SceneBootstrap: skipped saving scene changes - Play mode started mid-pass; will retry next edit-mode recompile.");
+            }
         }
     }
 
@@ -198,6 +226,18 @@ static class SceneBootstrap
         return true;
     }
 
+    static bool ForceGridSizeForStressTest()
+    {
+        LevelSettings settings = Object.FindAnyObjectByType<LevelSettings>();
+        if (settings == null || (settings.GridWidth == 64 && settings.GridHeight == 64))
+            return false;
+
+        Debug.Log($"SceneBootstrap: LevelSettings grid was {settings.GridWidth}x{settings.GridHeight}, forcing 64x64 for stress test.");
+        settings.GridWidth = 64;
+        settings.GridHeight = 64;
+        return true;
+    }
+
     static void EnsureMobileOrientation()
     {
         if (PlayerSettings.defaultInterfaceOrientation == UIOrientation.Portrait)
@@ -299,10 +339,22 @@ static class SceneBootstrap
         return true;
     }
 
+    const float BoardFramePaddingMultiplier = 0.5f;
+    const float BoardFrameThickness = 0.45f;
+
     static bool EnsureBoardPlatformFrame()
     {
-        if (Object.FindAnyObjectByType<BoardPlatformFrame>() != null)
-            return false;
+        BoardPlatformFrame existingFrame = Object.FindAnyObjectByType<BoardPlatformFrame>();
+        if (existingFrame != null)
+        {
+            // These tuning values only take effect on newly-created
+            // components - an instance already serialized into the scene
+            // keeps whatever value it was first created with even after
+            // the field's own C# default changes, so every tuning pass has
+            // to explicitly re-push the current values onto it too.
+            return SyncFloatField(existingFrame, "paddingMultiplier", BoardFramePaddingMultiplier)
+                | SyncFloatField(existingFrame, "thickness", BoardFrameThickness);
+        }
 
         Shader shader = Shader.Find("Custom/BoardFrameBevel");
         if (shader == null)
@@ -325,9 +377,27 @@ static class SceneBootstrap
         serialized.FindProperty("bottom").objectReferenceValue = bottom;
         serialized.FindProperty("left").objectReferenceValue = left;
         serialized.FindProperty("right").objectReferenceValue = right;
+        serialized.FindProperty("paddingMultiplier").floatValue = BoardFramePaddingMultiplier;
+        serialized.FindProperty("thickness").floatValue = BoardFrameThickness;
         serialized.ApplyModifiedProperties();
 
         Debug.Log("SceneBootstrap: added Board Platform Frame (fake-3D beveled border) around the board.");
+        return true;
+    }
+
+    // Pushes a float value onto a private [SerializeField] on an
+    // already-existing component if it doesn't already match - the shared
+    // mechanism EnsureBoardPlatformFrame/EnsureTrayPlatform use to keep
+    // live scene instances in sync with each tuning pass's code values.
+    static bool SyncFloatField(Object target, string propertyName, float value)
+    {
+        var serialized = new SerializedObject(target);
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property == null || Mathf.Approximately(property.floatValue, value))
+            return false;
+
+        property.floatValue = value;
+        serialized.ApplyModifiedProperties();
         return true;
     }
 
@@ -341,28 +411,78 @@ static class SceneBootstrap
         return strip.transform;
     }
 
+    static readonly Color TrayWellColor = new Color(0.16f, 0.14f, 0.22f, 1f);
+    const float TrayPaddingMultiplier = 0.5f;
+    const float TrayFrameThickness = 0.4f;
+
     static bool EnsureTrayPlatform()
     {
-        if (Object.FindAnyObjectByType<TrayPlatform>() != null)
-            return false;
-
-        Shader shader = Shader.Find("Custom/BoardFrameBevel");
-        if (shader == null)
+        TrayPlatform existing = Object.FindAnyObjectByType<TrayPlatform>();
+        if (existing != null)
         {
-            Debug.LogError("SceneBootstrap: could not find Custom/BoardFrameBevel shader.");
+            // An older version of this component was a single flat plate
+            // with no frame-strip/well children - rebuild it into the
+            // current frame+well structure instead of leaving the stale
+            // one (and its now-unused MeshRenderer/Collider) in place.
+            var existingSerialized = new SerializedObject(existing);
+            if (existingSerialized.FindProperty("innerWell").objectReferenceValue != null)
+            {
+                return SyncFloatField(existing, "paddingMultiplier", TrayPaddingMultiplier)
+                    | SyncFloatField(existing, "frameThickness", TrayFrameThickness);
+            }
+
+            Object.DestroyImmediate(existing.gameObject);
+        }
+
+        Shader frameShader = Shader.Find("Custom/BoardFrameBevel");
+        Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
+        if (frameShader == null || litShader == null)
+        {
+            Debug.LogError("SceneBootstrap: could not find a required shader for the Tray Platform.");
             return false;
         }
 
-        var material = new Material(shader) { name = "TrayPlatformBevel" };
+        var frameMaterial = new Material(frameShader) { name = "TrayPlatformBevel" };
+        var wellMaterial = new Material(litShader) { name = "TrayPlatformWell" };
+        wellMaterial.SetColor("_BaseColor", TrayWellColor);
+        wellMaterial.SetFloat("_Smoothness", 0.1f);
 
-        GameObject plate = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        plate.name = "Tray Platform";
-        Object.DestroyImmediate(plate.GetComponent<Collider>());
-        plate.GetComponent<MeshRenderer>().sharedMaterial = material;
-        plate.AddComponent<TrayPlatform>();
+        var root = new GameObject("Tray Platform");
+        Transform top = CreatePlatformStrip("Top", root.transform, frameMaterial);
+        Transform bottom = CreatePlatformStrip("Bottom", root.transform, frameMaterial);
+        Transform left = CreatePlatformStrip("Left", root.transform, frameMaterial);
+        Transform right = CreatePlatformStrip("Right", root.transform, frameMaterial);
 
-        Debug.Log("SceneBootstrap: added Tray Platform backing plate under the tray pieces.");
+        GameObject well = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        well.name = "Inner Well";
+        well.transform.SetParent(root.transform);
+        Object.DestroyImmediate(well.GetComponent<Collider>());
+        well.GetComponent<MeshRenderer>().sharedMaterial = wellMaterial;
+
+        TrayPlatform tray = root.AddComponent<TrayPlatform>();
+        var serialized = new SerializedObject(tray);
+        serialized.FindProperty("top").objectReferenceValue = top;
+        serialized.FindProperty("bottom").objectReferenceValue = bottom;
+        serialized.FindProperty("left").objectReferenceValue = left;
+        serialized.FindProperty("right").objectReferenceValue = right;
+        serialized.FindProperty("innerWell").objectReferenceValue = well.transform;
+        serialized.FindProperty("paddingMultiplier").floatValue = TrayPaddingMultiplier;
+        serialized.FindProperty("frameThickness").floatValue = TrayFrameThickness;
+        serialized.ApplyModifiedProperties();
+
+        Debug.Log("SceneBootstrap: added Tray Platform (beveled frame + recessed well) under the tray pieces.");
         return true;
+    }
+
+    const float PlatformGapMultiplier = 0.25f;
+
+    static bool SyncTrayGap()
+    {
+        PixelPaintGrid grid = Object.FindAnyObjectByType<PixelPaintGrid>();
+        if (grid == null)
+            return false;
+
+        return SyncFloatField(grid, "platformGapMultiplier", PlatformGapMultiplier);
     }
 
     const string ShowcaseImagePath = "Assets/Textures/showcase.png";
@@ -404,6 +524,137 @@ static class SceneBootstrap
 
         Debug.Log("SceneBootstrap: switched LevelSettings.SourceImage from the striped rainbow.png placeholder to a generated showcase pattern with varied regions.");
         return true;
+    }
+
+    const string FingerIdlePath = "Assets/Textures/94a2ff76-326d-4e06-a6c1-d6af865c7471.png";
+    const string FingerPressedPath = "Assets/Textures/10d001dd-1dff-44c8-b9b3-122635241856.png";
+
+    // The two finger-cursor images were dropped straight into the project
+    // by hand, so they still have the default "Texture" import type - this
+    // gets them into proper Sprite mode and wires them onto the
+    // TouchCursor instance's serialized fields, exactly like every other
+    // asset this file wires up automatically instead of by hand through
+    // the Editor UI.
+    static bool EnsureFingerCursorSprites()
+    {
+        TouchCursor cursor = Object.FindAnyObjectByType<TouchCursor>();
+        if (cursor == null)
+            return false;
+
+        var serialized = new SerializedObject(cursor);
+        SerializedProperty idleProp = serialized.FindProperty("idleSprite");
+        SerializedProperty pressedProp = serialized.FindProperty("pressedSprite");
+        if (idleProp.objectReferenceValue != null && pressedProp.objectReferenceValue != null)
+            return false;
+
+        RemoveWhiteBackground(FingerIdlePath);
+        Sprite idleSprite = EnsureSpriteImportSettings(FingerIdlePath);
+        Sprite pressedSprite = EnsureSpriteImportSettings(FingerPressedPath);
+        if (idleSprite == null || pressedSprite == null)
+            return false;
+
+        idleProp.objectReferenceValue = idleSprite;
+        pressedProp.objectReferenceValue = pressedSprite;
+        serialized.ApplyModifiedProperties();
+
+        Debug.Log("SceneBootstrap: wired the provided finger-cursor images onto TouchCursor.");
+        return true;
+    }
+
+    static Sprite EnsureSpriteImportSettings(string assetPath)
+    {
+        var importer = (TextureImporter)AssetImporter.GetAtPath(assetPath);
+        if (importer == null)
+            return null;
+
+        if (importer.textureType != TextureImporterType.Sprite || !importer.alphaIsTransparency || !importer.isReadable)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.isReadable = true;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+        }
+
+        return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+    }
+
+    // The idle finger image was exported on a flat opaque white canvas
+    // instead of a transparent one, which would otherwise show as a solid
+    // white square floating over the board. Flood-filling from the four
+    // edges (rather than a blanket near-white threshold) only clears the
+    // actual background - it can't leak past the hand's dark outline
+    // stroke into the white highlights/fingernail inside the shape.
+    static void RemoveWhiteBackground(string assetPath)
+    {
+        var importer = (TextureImporter)AssetImporter.GetAtPath(assetPath);
+        if (importer == null)
+            return;
+
+        bool wasReadable = importer.isReadable;
+        if (!wasReadable)
+        {
+            importer.isReadable = true;
+            importer.SaveAndReimport();
+        }
+
+        var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        if (texture == null)
+            return;
+
+        Color32[] pixels = texture.GetPixels32();
+        int width = texture.width, height = texture.height;
+
+        if (pixels[0].a < 250)
+            return; // already processed
+
+        var visited = new bool[pixels.Length];
+        var queue = new System.Collections.Generic.Queue<int>();
+
+        void TryEnqueue(int x, int y)
+        {
+            if (x < 0 || x >= width || y < 0 || y >= height)
+                return;
+            int i = y * width + x;
+            if (visited[i])
+                return;
+            Color32 p = pixels[i];
+            if (p.r > 235 && p.g > 235 && p.b > 235)
+            {
+                visited[i] = true;
+                queue.Enqueue(i);
+            }
+        }
+
+        for (int x = 0; x < width; x++)
+        {
+            TryEnqueue(x, 0);
+            TryEnqueue(x, height - 1);
+        }
+        for (int y = 0; y < height; y++)
+        {
+            TryEnqueue(0, y);
+            TryEnqueue(width - 1, y);
+        }
+
+        while (queue.Count > 0)
+        {
+            int i = queue.Dequeue();
+            pixels[i].a = 0;
+            int x = i % width, y = i / width;
+            TryEnqueue(x - 1, y);
+            TryEnqueue(x + 1, y);
+            TryEnqueue(x, y - 1);
+            TryEnqueue(x, y + 1);
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply();
+        File.WriteAllBytes(assetPath, texture.EncodeToPNG());
+        AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+
+        Debug.Log($"SceneBootstrap: removed the flat white background from '{assetPath}'.");
     }
 
     static Texture2D GenerateShowcaseTexture(int size)
@@ -463,6 +714,28 @@ static class SceneBootstrap
                 Debug.Log($"SceneBootstrap: removing orphaned test object '{go.name}'.");
                 Object.DestroyImmediate(go);
                 removedAny = true;
+            }
+        }
+        return removedAny;
+    }
+
+    // Strips broken MonoBehaviour references left over on real scene
+    // objects (e.g. a since-deleted Editor diagnostic script that used to
+    // be attached to one for a one-off test) without destroying the
+    // GameObject itself, unlike RemoveOrphanedTestObjects above.
+    static bool RemoveMissingScripts()
+    {
+        bool removedAny = false;
+        foreach (GameObject root in SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            {
+                int removed = GameObjectUtility.RemoveMonoBehavioursWithMissingScript(t.gameObject);
+                if (removed > 0)
+                {
+                    Debug.Log($"SceneBootstrap: removed {removed} missing script reference(s) from '{t.gameObject.name}'.");
+                    removedAny = true;
+                }
             }
         }
         return removedAny;

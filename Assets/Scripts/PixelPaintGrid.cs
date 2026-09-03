@@ -7,6 +7,9 @@ public class PixelPaintGrid : MonoBehaviour
 {
     [SerializeField] RevealEffects revealEffects;
 
+    [Tooltip("Vertical gap between the board frame's outer edge and the tray frame's outer edge, as a multiple of one cell (pieceSize) - not a fixed world-space distance.")]
+    [SerializeField] float platformGapMultiplier = 0.25f;
+
     BoardData _board;
     BoardRenderer _boardRenderer;
     RevealManager _revealManager;
@@ -136,8 +139,9 @@ public class PixelPaintGrid : MonoBehaviour
             yield break;
         }
 
-        _numberAtlas = NumberAtlasBaker.Bake(_board, numberFont);
-        _boardRenderer = new BoardRenderer(_board, cubeMesh, boardMaterial, transform.position, _numberAtlas);
+        (Texture2D atlas, Dictionary<int, Vector4> atlasUVByNumber) = NumberAtlasBaker.Bake(_board, numberFont);
+        _numberAtlas = atlas;
+        _boardRenderer = new BoardRenderer(_board, cubeMesh, boardMaterial, transform.position, _numberAtlas, atlasUVByNumber);
         _revealManager = new RevealManager(_board, _boardRenderer);
 
         SpawnLeftoverPieces(settings.PiecePrefab, settings.PieceSize);
@@ -148,7 +152,11 @@ public class PixelPaintGrid : MonoBehaviour
         // Tray sits below the board (negative Z), not above it: dragging a
         // piece upward onto the board keeps the player's hand/finger clear
         // of the board instead of covering it while dragging downward.
-        float startZ = -(pieceSize * 2);
+        // The gap between the two platform frames is derived from both
+        // frames' own actual outer bounds plus an explicit gap - never a
+        // guessed constant that could drift out of sync with either
+        // frame's own padding/thickness tuning.
+        float startZ = ComputeTrayStartZ(pieceSize);
         int slot = 0;
 
         for (int i = 0; i < _board.Cells.Length; i++)
@@ -175,11 +183,45 @@ public class PixelPaintGrid : MonoBehaviour
         if (slot > 0)
         {
             int lastRow = (slot - 1) / _board.Width;
+            // The tray always reserves a full-width last row (rather than
+            // shrinking to however many pieces actually landed there), so
+            // unused trailing slots just read as empty recessed well
+            // instead of the tray looking like a shorter, separate grid.
             int maxCol = Mathf.Min(slot, _board.Width) - 1;
+
             TrayPlatform trayPlatform = FindAnyObjectByType<TrayPlatform>();
             if (trayPlatform != null)
-                trayPlatform.Fit(transform.position, 0f, maxCol * pieceSize, startZ - lastRow * pieceSize, startZ);
+            {
+                // minX/maxX/minZ/maxZ describe the grid coordinates pieces
+                // are centered on, not their visual footprint - a piece at
+                // col 0 still extends pieceSize*0.5 further left, so that
+                // half-piece overhang has to be added on every side or the
+                // outer row/column of cubes visually pokes through the
+                // platform's own edge.
+                float halfPiece = pieceSize * 0.5f;
+                trayPlatform.Fit(transform.position, -halfPiece, maxCol * pieceSize + halfPiece,
+                    startZ - lastRow * pieceSize - halfPiece, startZ + halfPiece, pieceSize);
+            }
         }
+    }
+
+    // Derives the tray's first-row cube-center Z purely from the board
+    // frame's own outer bottom edge, the tray frame's own outer-edge
+    // offset, and an explicit gap - so the two platforms can never drift
+    // into touching/overlapping regardless of how either one's own
+    // padding/thickness is tuned. Falls back to a fixed offset only if
+    // either platform is missing (e.g. a test scene without them).
+    float ComputeTrayStartZ(float pieceSize)
+    {
+        BoardPlatformFrame boardFrame = FindAnyObjectByType<BoardPlatformFrame>();
+        TrayPlatform trayPlatform = FindAnyObjectByType<TrayPlatform>();
+        if (boardFrame == null || trayPlatform == null)
+            return -(pieceSize * 2);
+
+        float boardOuterBottomZ = boardFrame.GetOuterBottomZ(pieceSize);
+        float trayTopEdgeOffset = trayPlatform.GetTopEdgeOffsetFromCubeCenter(pieceSize);
+        float gap = platformGapMultiplier * pieceSize;
+        return boardOuterBottomZ - gap - trayTopEdgeOffset;
     }
 
     public void Regenerate()

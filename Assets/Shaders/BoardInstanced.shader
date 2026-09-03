@@ -101,9 +101,13 @@ Shader "Custom/BoardInstanced"
                 // boundary up with the cube's actual edges.
                 float2 localUV = frac(IN.positionWS.xz + 0.5);
 
-                // Per-cell noise offset (derived from the cell's own atlas
-                // UV) so neighboring cells don't dissolve in lockstep.
-                float2 noiseUV = localUV + cellUV.xy * 13.37;
+                // Per-cell noise offset so neighboring cells don't dissolve
+                // in lockstep. Seeded from world position rather than
+                // _CellUV: cells sharing a number now also share the same
+                // atlas UV (NumberAtlasBaker bakes one region per distinct
+                // number, not per cell), so _CellUV alone would sync every
+                // same-numbered cell's dissolve timing together.
+                float2 noiseUV = localUV + floor(IN.positionWS.xz + 0.5) * 0.1337;
                 float n = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, noiseUV).r;
 
                 float revealed = progress > 0.001 ? step(n, progress) : 0;

@@ -72,7 +72,7 @@ public class GameHud : MonoBehaviour
         barRect.anchorMax = new Vector2(1f, 1f);
         barRect.pivot = new Vector2(0.5f, 1f);
         barRect.sizeDelta = new Vector2(0f, 170f);
-        barRect.anchoredPosition = new Vector2(0f, -50f);
+        barRect.anchoredPosition = new Vector2(0f, -90f);
 
         CreateMenuIcon(barRect, new Vector2(-460f, 0f), 100f);
         CreatePill(barRect, "Score Pill", new Vector2(-260f, 0f), 190f, 84f, "8320", GoldAccent);

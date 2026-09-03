@@ -2,17 +2,21 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
-// One-time bake of every cell's number into a single shared texture, so the
-// GPU-instanced board can show numbers by sampling one texture instead of
-// needing a per-instance digit-atlas lookup or per-cell TextMeshPro objects.
-// Spawns TMP text for the whole grid, renders it once through a temporary
-// orthographic camera, then tears everything down immediately.
+// One-time bake of each DISTINCT NUMBER (not each cell) into a single
+// small shared texture. A board only ever has as many distinct numbers as
+// the source image has color groups - bounded by the palette, not by
+// cell count - so a 64x64 board (4096 cells) with, say, 16 distinct
+// numbers still only spawns 16 TMP objects and bakes a small texture,
+// not one atlas region per cell. The previous per-cell version scaled the
+// atlas with grid area (4096x4096 at 64x64, exactly 64MB as RGBA32),
+// which overflowed this environment's D3D12 upload buffer and made the
+// bake effectively hang; this version's atlas size is independent of
+// grid size entirely.
 public static class NumberAtlasBaker
 {
     const int CellPixelSize = 96;
-    const int MaxTextureSize = 4096;
 
-    public static Texture2D Bake(BoardData board, TMP_FontAsset font)
+    public static (Texture2D atlas, Dictionary<int, Vector4> uvByNumber) Bake(BoardData board, TMP_FontAsset font)
     {
         // This is a Dynamic-atlas-population font, so digits it hasn't been
         // asked to render yet don't have glyph data until generated. Force
@@ -23,8 +27,6 @@ public static class NumberAtlasBaker
 
         // A dark outline keeps numbers legible once cells sit on top of
         // bright/varied revealed colors instead of just the flat gray mask.
-        // Set once on the font asset's shared material so both the baked
-        // board numbers and the tray's live TMP text pick it up.
         if (font.material != null)
         {
             font.material.SetColor(ShaderUtilities.ID_OutlineColor, Color.black);
@@ -32,8 +34,14 @@ public static class NumberAtlasBaker
             font.material.EnableKeyword(ShaderUtilities.Keyword_Outline);
         }
 
-        int texWidth = Mathf.Clamp(board.Width * CellPixelSize, CellPixelSize, MaxTextureSize);
-        int texHeight = Mathf.Clamp(board.Height * CellPixelSize, CellPixelSize, MaxTextureSize);
+        var numbers = new List<int>(board.NumberToCellIndices.Keys);
+        numbers.Sort();
+
+        int cols = Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt(numbers.Count)));
+        int rows = Mathf.Max(1, Mathf.CeilToInt(numbers.Count / (float)cols));
+
+        int texWidth = cols * CellPixelSize;
+        int texHeight = rows * CellPixelSize;
 
         var renderTexture = new RenderTexture(texWidth, texHeight, 0, RenderTextureFormat.ARGB32)
         {
@@ -44,31 +52,39 @@ public static class NumberAtlasBaker
         var cameraGO = new GameObject("~NumberAtlasBakeCamera") { hideFlags = HideFlags.HideAndDontSave };
         Camera bakeCamera = cameraGO.AddComponent<Camera>();
         bakeCamera.orthographic = true;
-        bakeCamera.orthographicSize = board.Height * 0.5f;
-        bakeCamera.aspect = (float)board.Width / board.Height;
+        bakeCamera.orthographicSize = rows * 0.5f;
+        bakeCamera.aspect = (float)cols / rows;
         bakeCamera.clearFlags = CameraClearFlags.SolidColor;
         bakeCamera.backgroundColor = new Color(0f, 0f, 0f, 0f);
         bakeCamera.targetTexture = renderTexture;
         bakeCamera.nearClipPlane = 0.1f;
         bakeCamera.farClipPlane = 20f;
         cameraGO.transform.SetPositionAndRotation(
-            new Vector3(board.Width * 0.5f, 10f, board.Height * 0.5f),
+            new Vector3(cols * 0.5f, 10f, rows * 0.5f),
             Quaternion.Euler(90f, 0f, 0f));
 
         var textParent = new GameObject("~NumberAtlasBakeText") { hideFlags = HideFlags.HideAndDontSave };
-        var allTexts = new List<TextMeshPro>(board.Cells.Length);
+        var allTexts = new List<TextMeshPro>(numbers.Count);
+        var uvByNumber = new Dictionary<int, Vector4>(numbers.Count);
 
-        foreach (Cell cell in board.Cells)
+        float cellDu = 1f / cols;
+        float cellDv = 1f / rows;
+
+        for (int i = 0; i < numbers.Count; i++)
         {
-            var go = new GameObject($"num_{cell.x}_{cell.z}");
+            int number = numbers[i];
+            int col = i % cols;
+            int row = i / cols;
+
+            var go = new GameObject($"num_{number}");
             go.transform.SetParent(textParent.transform);
             go.transform.SetPositionAndRotation(
-                new Vector3(cell.x + 0.5f, 0f, cell.z + 0.5f),
+                new Vector3(col + 0.5f, 0f, row + 0.5f),
                 Quaternion.Euler(90f, 0f, 0f));
 
             var tmp = go.AddComponent<TextMeshPro>();
             tmp.font = font;
-            tmp.text = cell.number.ToString();
+            tmp.text = number.ToString();
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.enableAutoSizing = true;
             tmp.fontSizeMin = 1f;
@@ -76,6 +92,8 @@ public static class NumberAtlasBaker
             tmp.color = Color.white;
             tmp.rectTransform.sizeDelta = new Vector2(0.9f, 0.9f);
             allTexts.Add(tmp);
+
+            uvByNumber[number] = new Vector4(col * cellDu, row * cellDv, cellDu, cellDv);
         }
 
         // Two passes: the first pass is what triggers the SDF font asset to
@@ -106,6 +124,6 @@ public static class NumberAtlasBaker
         renderTexture.Release();
         Object.Destroy(renderTexture);
 
-        return atlas;
+        return (atlas, uvByNumber);
     }
 }

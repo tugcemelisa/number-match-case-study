@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // GPU-instanced replacement for spawning one GameObject per board cell.
@@ -41,7 +42,12 @@ public class BoardRenderer
     readonly MaterialPropertyBlock[] _batchBlocks;
     readonly bool[] _batchDirty;
 
-    public BoardRenderer(BoardData board, Mesh mesh, Material material, Vector3 origin, Texture2D numberAtlas)
+    // atlasUVByNumber maps each distinct number to its (shared) sub-rect
+    // in the small number atlas baked by NumberAtlasBaker - every cell
+    // with the same number reuses the same atlas region, so atlas size
+    // and bake cost are bounded by the palette, not by cell count.
+    public BoardRenderer(BoardData board, Mesh mesh, Material material, Vector3 origin, Texture2D numberAtlas,
+        Dictionary<int, Vector4> atlasUVByNumber)
     {
         _board = board;
         _mesh = mesh;
@@ -64,9 +70,6 @@ public class BoardRenderer
         _batchBlocks = new MaterialPropertyBlock[batchCount];
         _batchDirty = new bool[batchCount];
 
-        float cellDu = 1f / board.Width;
-        float cellDv = 1f / board.Height;
-
         for (int b = 0; b < batchCount; b++)
         {
             int start = b * BatchSize;
@@ -83,7 +86,7 @@ public class BoardRenderer
             _batchBlocks[b] = new MaterialPropertyBlock();
 
             for (int i = 0; i < count; i++)
-                BuildInstance(b, i, start + i, cellDu, cellDv);
+                BuildInstance(b, i, start + i, atlasUVByNumber);
 
             _batchBlocks[b].SetVectorArray(TrueColorId, _batchTrueColor[b]);
             _batchBlocks[b].SetVectorArray(CellUVId, _batchCellUV[b]);
@@ -93,13 +96,13 @@ public class BoardRenderer
         }
     }
 
-    void BuildInstance(int batch, int localIndex, int cellIndex, float cellDu, float cellDv)
+    void BuildInstance(int batch, int localIndex, int cellIndex, Dictionary<int, Vector4> atlasUVByNumber)
     {
         Cell cell = _board.Cells[cellIndex];
         Vector3 position = _origin + _board.GetCellLocalPosition(cellIndex);
         _batchMatrices[batch][localIndex] = Matrix4x4.TRS(position, Quaternion.identity, Vector3.one * _board.PieceSize);
         _batchTrueColor[batch][localIndex] = cell.color;
-        _batchCellUV[batch][localIndex] = new Vector4(cell.x * cellDu, cell.z * cellDv, cellDu, cellDv);
+        _batchCellUV[batch][localIndex] = atlasUVByNumber[cell.number];
         _batchRevealProgress[batch][localIndex] = cell.revealed ? 1f : 0f;
         _batchFilled[batch][localIndex] = cell.filled ? 1f : 0f;
     }
