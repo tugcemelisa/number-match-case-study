@@ -201,6 +201,8 @@ public class GameHud : MonoBehaviour
 
     public void PlayGroupSuccess()
     {
+        if (FindAnyObjectByType<CreativeVideoDirector>() != null)
+            return;
         _popupText.text = SuccessWords[Random.Range(0, SuccessWords.Length)];
         if (_popupRoutine != null)
             StopCoroutine(_popupRoutine);

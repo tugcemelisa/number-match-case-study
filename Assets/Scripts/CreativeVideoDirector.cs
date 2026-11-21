@@ -69,9 +69,11 @@ public class CreativeVideoDirector : MonoBehaviour
             Directory.CreateDirectory(outputDir);
         }
 
-        // Hide any FPS counter
+        // Hide any FPS counter and static GameHud (replaced by dynamic animated Creative HUD)
         FpsCounter fps = FindAnyObjectByType<FpsCounter>();
         if (fps != null) fps.enabled = false;
+        GameHud hud = FindAnyObjectByType<GameHud>();
+        if (hud != null) hud.gameObject.SetActive(false);
 
         yield return new WaitUntil(() =>
         {
