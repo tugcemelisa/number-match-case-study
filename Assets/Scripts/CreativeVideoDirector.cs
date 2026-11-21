@@ -17,17 +17,19 @@ public class CreativeVideoDirector : MonoBehaviour
     public bool recordFrames = false;
     public string outputDir = "CreativeAd_AfterEffects/RawFrames";
     public int recordFps = 30;
-    public int totalFramesToRecord = 360; // 12.0s of pure gameplay hook footage
+    public int totalFramesToRecord = 420; // 14.0s of deliberate, natural-paced gameplay hook footage
 
     PixelPaintGrid _grid;
     RevealEffects _effects;
     Camera _cam;
     int _capturedCount;
     bool _running;
+    Vector2 _lastFingerScreen;
     readonly HashSet<PaintPiece> _usedPieces = new HashSet<PaintPiece>();
 
     void Awake()
     {
+        totalFramesToRecord = 420;
         string[] args = Environment.GetCommandLineArgs();
         for (int i = 0; i < args.Length; i++)
         {
@@ -79,7 +81,9 @@ public class CreativeVideoDirector : MonoBehaviour
         if (recordFrames)
             StartCoroutine(FrameCaptureLoop());
 
-        yield return new WaitForSeconds(0.25f);
+        _lastFingerScreen = new Vector2(Screen.width * 0.55f, Screen.height * 0.18f);
+        TouchCursor.SetSimulatedPointer(true, _lastFingerScreen, false);
+        yield return new WaitForSeconds(0.28f);
 
         int moveIndex = 0;
         bool didWrongDropHook = false;
@@ -93,14 +97,15 @@ public class CreativeVideoDirector : MonoBehaviour
             Vector3 startWorld = piece.transform.position;
             Vector2 startScreen = _cam.WorldToScreenPoint(startWorld);
 
-            // Move finger cursor to tray piece
-            yield return MoveFingerScreen(startScreen, 0.22f, false);
+            // Smoothly glide finger from its previous position to the tray piece
+            float moveDur = moveIndex == 0 ? 0.34f : (moveIndex == 1 ? 0.32f : 0.48f);
+            yield return MoveFingerScreen(startScreen, moveDur, false);
             TouchCursor.SetSimulatedPointer(true, startScreen, true);
             _effects?.PlayPickup();
             piece.SetColliderEnabled(false);
-            yield return new WaitForSeconds(0.08f);
+            yield return new WaitForSeconds(moveIndex <= 1 ? 0.10f : 0.16f);
 
-            // Hook 2 (on moveIndex == 1): Intentional wrong-number drop for red flash & reject shake!
+            // Hook 2 (inside the first 3 seconds, on moveIndex == 1): Intentional wrong-number drop for red flash & reject shake!
             if (moveIndex == 1 && !didWrongDropHook)
             {
                 didWrongDropHook = true;
@@ -108,24 +113,26 @@ public class CreativeVideoDirector : MonoBehaviour
                 if (wrongCell >= 0)
                 {
                     Vector3 wrongWorld = _grid.transform.position + _grid.Board.GetCellLocalPosition(wrongCell);
-                    yield return DragPieceTo(piece, startWorld, wrongWorld, 0.42f);
-                    TouchCursor.SetSimulatedPointer(true, _cam.WorldToScreenPoint(wrongWorld), false);
+                    yield return DragPieceTo(piece, startWorld, wrongWorld, 0.58f);
+                    _lastFingerScreen = _cam.WorldToScreenPoint(wrongWorld);
+                    TouchCursor.SetSimulatedPointer(true, _lastFingerScreen, false);
                     _grid.FlashWrongCell(wrongCell);
                     GameHud.Instance?.RegisterWrongPlacement();
                     piece.PlayRejectAndReturn();
                     _effects?.PlayReject();
-                    yield return new WaitForSeconds(0.62f);
+                    yield return new WaitForSeconds(0.88f);
                     continue;
                 }
             }
 
-            // Normal / Combo Hook placement
+            // Deliberate, readable human drag & placement
             _usedPieces.Add(piece);
             Vector3 targetWorld = _grid.transform.position + _grid.Board.GetCellLocalPosition(targetCell);
-            float dragDur = moveIndex == 0 ? 0.38f : 0.26f;
+            float dragDur = moveIndex == 0 ? 0.58f : 0.65f;
             yield return DragPieceTo(piece, piece.transform.position, targetWorld, dragDur);
 
-            TouchCursor.SetSimulatedPointer(true, _cam.WorldToScreenPoint(targetWorld), false);
+            _lastFingerScreen = _cam.WorldToScreenPoint(targetWorld);
+            TouchCursor.SetSimulatedPointer(true, _lastFingerScreen, false);
             bool placed = _grid.TryPlacePiece(targetCell, piece.Number);
             if (placed)
             {
@@ -135,7 +142,9 @@ public class CreativeVideoDirector : MonoBehaviour
 
             moveIndex++;
             bool groupDone = _grid.Board.IsGroupComplete(piece.Number);
-            yield return new WaitForSeconds(groupDone ? 0.45f : 0.22f);
+            // Pause longer so viewer can clearly watch the radial wave dissolve and each move
+            float postPause = moveIndex == 1 ? 0.52f : (groupDone ? 0.90f : 0.55f);
+            yield return new WaitForSeconds(postPause);
         }
 
         TouchCursor.SetSimulatedPointer(false, Vector2.zero, false);
@@ -227,7 +236,7 @@ public class CreativeVideoDirector : MonoBehaviour
 
     IEnumerator MoveFingerScreen(Vector2 targetScreen, float duration, bool pressed)
     {
-        Vector2 startScreen = new Vector2(Screen.width * 0.5f, Screen.height * 0.22f);
+        Vector2 startScreen = _lastFingerScreen;
         float t = 0f;
         while (t < duration)
         {
@@ -236,6 +245,7 @@ public class CreativeVideoDirector : MonoBehaviour
             TouchCursor.SetSimulatedPointer(true, Vector2.Lerp(startScreen, targetScreen, k), pressed);
             yield return null;
         }
+        _lastFingerScreen = targetScreen;
         TouchCursor.SetSimulatedPointer(true, targetScreen, pressed);
     }
 
