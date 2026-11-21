@@ -8,7 +8,6 @@ A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa 
 
 - 🎬 **Creative Ad (YouTube Shorts):** [Watch on YouTube Shorts](https://youtube.com/shorts/G4jU1Z6JKeI)
 - 🎮 **Playable Ad (Live Browser Demo):** [Play Number Match Now](https://tugcemelisa.github.io/playable-ads-portfolio/number-match/)
-- 📂 **Playable Ads Portfolio:** [github.com/tugcemelisa/playable-ads-portfolio](https://github.com/tugcemelisa/playable-ads-portfolio)
 
 ---
 
