@@ -177,32 +177,20 @@ public class GameHud : MonoBehaviour
 
     void BuildCenterPopup(Transform parent)
     {
-        RectTransform root = CreatePanel("Success Popup", parent, new Color(0.14f, 0.1f, 0.24f, 0.96f));
+        RectTransform root = CreatePanel("Success Popup", parent, new Color(0.14f, 0.1f, 0.24f, 0.94f));
         root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
-        root.sizeDelta = new Vector2(420f, 220f);
-        root.anchoredPosition = Vector2.zero;
+        root.sizeDelta = new Vector2(360f, 115f);
+        root.anchoredPosition = new Vector2(0f, 540f);
         AddInnerBorder(root);
 
         var group = root.gameObject.AddComponent<CanvasGroup>();
         group.alpha = 0f;
         root.gameObject.SetActive(false);
 
-        // A plain rounded badge instead of a star glyph - symbol
-        // characters aren't guaranteed to exist in the Bangers SDF font.
-        RectTransform icon = CreatePanel("Icon", root, GoldAccent);
-        icon.anchorMin = new Vector2(0.5f, 0.42f);
-        icon.anchorMax = new Vector2(0.5f, 1f);
-        icon.pivot = new Vector2(0.5f, 0.5f);
-        icon.sizeDelta = new Vector2(76f, 76f);
-        icon.anchoredPosition = new Vector2(0f, -6f);
-
-        TextMeshProUGUI label = CreateText(root, "Great!", 54f, TextColor);
+        TextMeshProUGUI label = CreateText(root, "Great!", 58f, GoldAccent);
         label.font = _font;
         label.fontStyle = FontStyles.Bold;
-        label.rectTransform.anchorMin = new Vector2(0f, 0f);
-        label.rectTransform.anchorMax = new Vector2(1f, 0.42f);
-        label.rectTransform.offsetMin = Vector2.zero;
-        label.rectTransform.offsetMax = Vector2.zero;
+        StretchFull(label.rectTransform);
 
         _popupRoot = root;
         _popupText = label;

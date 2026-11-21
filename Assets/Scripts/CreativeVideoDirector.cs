@@ -26,6 +26,13 @@ public class CreativeVideoDirector : MonoBehaviour
     bool _running;
     Vector2 _lastFingerScreen;
     readonly HashSet<PaintPiece> _usedPieces = new HashSet<PaintPiece>();
+    readonly List<string> _sfxLog = new List<string>();
+
+    void LogSfx(string evtName)
+    {
+        float t = _capturedCount / (float)Mathf.Max(1, recordFps);
+        _sfxLog.Add($"{t:F3}:{evtName}");
+    }
 
     void Awake()
     {
@@ -98,37 +105,40 @@ public class CreativeVideoDirector : MonoBehaviour
             Vector2 startScreen = _cam.WorldToScreenPoint(startWorld);
 
             // Smoothly glide finger from its previous position to the tray piece
-            float moveDur = moveIndex == 0 ? 0.34f : (moveIndex == 1 ? 0.32f : 0.48f);
+            float moveDur = !didWrongDropHook ? 0.40f : 0.46f;
             yield return MoveFingerScreen(startScreen, moveDur, false);
             TouchCursor.SetSimulatedPointer(true, startScreen, true);
             _effects?.PlayPickup();
+            LogSfx("pickup");
             piece.SetColliderEnabled(false);
-            yield return new WaitForSeconds(moveIndex <= 1 ? 0.10f : 0.16f);
+            yield return new WaitForSeconds(0.12f);
 
-            // Hook 2 (inside the first 3 seconds, on moveIndex == 1): Intentional wrong-number drop for red flash & reject shake!
-            if (moveIndex == 1 && !didWrongDropHook)
+            // OPENING HOOK MOMENT (First 3 Seconds, very first move): Intentional wrong-number drop!
+            if (!didWrongDropHook)
             {
                 didWrongDropHook = true;
                 int wrongCell = FindWrongEmptyCell(piece.Number);
                 if (wrongCell >= 0)
                 {
                     Vector3 wrongWorld = _grid.transform.position + _grid.Board.GetCellLocalPosition(wrongCell);
-                    yield return DragPieceTo(piece, startWorld, wrongWorld, 0.58f);
+                    yield return DragPieceTo(piece, startWorld, wrongWorld, 0.68f);
                     _lastFingerScreen = _cam.WorldToScreenPoint(wrongWorld);
                     TouchCursor.SetSimulatedPointer(true, _lastFingerScreen, false);
                     _grid.FlashWrongCell(wrongCell);
                     GameHud.Instance?.RegisterWrongPlacement();
                     piece.PlayRejectAndReturn();
                     _effects?.PlayReject();
-                    yield return new WaitForSeconds(0.88f);
+                    LogSfx("reject");
+                    piece.SetColliderEnabled(true);
+                    yield return new WaitForSeconds(1.45f);
                     continue;
                 }
             }
 
-            // Deliberate, readable human drag & placement
+            // Thereafter: 100% successful, deliberate, natural-speed human gameplay!
             _usedPieces.Add(piece);
             Vector3 targetWorld = _grid.transform.position + _grid.Board.GetCellLocalPosition(targetCell);
-            float dragDur = moveIndex == 0 ? 0.58f : 0.65f;
+            float dragDur = 0.62f;
             yield return DragPieceTo(piece, piece.transform.position, targetWorld, dragDur);
 
             _lastFingerScreen = _cam.WorldToScreenPoint(targetWorld);
@@ -138,12 +148,14 @@ public class CreativeVideoDirector : MonoBehaviour
             {
                 piece.PlayCorrectPlacement(targetWorld);
                 GameHud.Instance?.RegisterCorrectPlacement();
+                LogSfx("place");
             }
 
             moveIndex++;
             bool groupDone = _grid.Board.IsGroupComplete(piece.Number);
-            // Pause longer so viewer can clearly watch the radial wave dissolve and each move
-            float postPause = moveIndex == 1 ? 0.52f : (groupDone ? 0.90f : 0.55f);
+            if (groupDone)
+                LogSfx("reveal");
+            float postPause = groupDone ? 0.85f : 0.52f;
             yield return new WaitForSeconds(postPause);
         }
 
@@ -226,8 +238,10 @@ public class CreativeVideoDirector : MonoBehaviour
     int FindWrongEmptyCell(int pieceNumber)
     {
         BoardData board = _grid.Board;
-        for (int i = 0; i < board.Cells.Length; i++)
+        int startIdx = board.Cells.Length / 3;
+        for (int offset = 0; offset < board.Cells.Length; offset++)
         {
+            int i = (startIdx + offset) % board.Cells.Length;
             if (!board.Cells[i].filled && board.Cells[i].number != pieceNumber)
                 return i;
         }
@@ -278,6 +292,7 @@ public class CreativeVideoDirector : MonoBehaviour
         }
         _running = false;
         Time.captureDeltaTime = 0f;
+        File.WriteAllLines(Path.Combine(outputDir, "sfx_events.txt"), _sfxLog);
         Debug.Log($"[CreativeVideoDirector] Captured {_capturedCount} frames to {outputDir}");
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
