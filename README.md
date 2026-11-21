@@ -9,6 +9,7 @@ A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa 
 - **Creative Video (MP4 in Repo):** [`CreativeAd_AfterEffects/NumberMatch_Creative_Video_Final.mp4`](CreativeAd_AfterEffects/NumberMatch_Creative_Video_Final.mp4)
 - **Raw Gameplay Capture (1080×1920, 30 FPS):** [`CreativeAd_AfterEffects/NumberMatch_Raw_Gameplay.mp4`](CreativeAd_AfterEffects/NumberMatch_Raw_Gameplay.mp4)
 - **YouTube Shorts Link:** *(Uploading — YouTube link will be added here)*
+- **Live Playable Ad Demo (Unity Playworks HTML5):** [Play Number Match in Browser](https://tugcemelisa.github.io/playable-ads-portfolio/number-match/)
 - **Playable Ads Portfolio Repository:** [https://github.com/tugcemelisa/playable-ads-portfolio](https://github.com/tugcemelisa/playable-ads-portfolio)
 
 ---
@@ -20,7 +21,7 @@ A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa 
 | **1. Dynamic Top HUD & Opening Hook** | `0.0s – 3.0s` | Custom animated top HUD featuring a live **COINS (`1,250 → 2,500`)** reward bar, **LEVEL 42** royal crest, and a ticking **TIME LEFT (`00:14 → 00:00`)** stopwatch (kept 100% visible throughout). On the first move (`1.53s`), the player drops a tile onto the wrong number cell — triggering an instant error buzzer SFX, screen shake, red danger flash, and a center-screen **Sad Emoji (😢) + `"WRONG NUMBER! WATCH OUT!"`** modal (no reward particles on failure). |
 | **2. Radial Wave Reveals & Star-Eyes Praise** | `3.0s – 13.6s` | Deliberate, readable drag-and-drop gameplay completes four colour rings one by one. Each completed group shatters open with a 360° radial wave dissolve (`RevealEffects`) while a center-screen **Star-Struck Emoji (🤩) + `"AMAZING! PERFECT MATCH!"` / `"BRILLIANT! GENIUS MOVE!"`** praise card pops up with star/confetti celebration particles and ascending chimes. |
 | **3. Centered Countdown Alarm & `00:00` Explosion Transition** | `9.0s – 14.3s` | As the timer reaches `00:05`, the HUD cards hide to place a bold, centered red **`"HURRY UP!"`** countdown timer in the middle of the screen. Accelerating clock tick-tock and alarm beeps build tension until `00:00` (`13.68s`), when a massive 3D fireball & shockwave explosion with 85 flying 3D debris blocks and stars blasts open directly into the Endcard. |
-| **4. Higgsfield 3D Endcard & Voiceover CTA** | `14.0s – 18.0s` | Features the 3D **NUMBER MATCH** logo generated with **Higgsfield AI**, composited and animated in **Adobe After Effects**, vector UI badges and typography designed in **Adobe Illustrator**, the slogan ***"Match Numbers, Create Art!"***, a pulsing 3D green **PLAY NOW** CTA button leading to the App Store, and an excited female voiceover announcement: ***"Play Number Match Now!"***. |
+| **4. 3D Endcard & Voiceover CTA** | `14.0s – 18.0s` | Features the 3D **NUMBER MATCH** logo and motion graphics composited and animated in **Adobe After Effects**, with vector store badges, UI elements, and typography designed in **Adobe Illustrator**, the slogan ***"Match Numbers, Create Art!"***, a pulsing 3D green **PLAY NOW** CTA button leading to the App Store, and an energetic female voiceover announcement: ***"Play Number Match Now!"***. |
 
 ### Keyframe Previews
 
