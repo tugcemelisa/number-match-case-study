@@ -23,11 +23,12 @@ A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa 
 ### Keyframe Previews
 
 <p align="center">
-  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/01_Hook_Start_9x16.png" width="19%" alt="Opening HUD" />
-  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/02_Wrong_Move_Hook_9x16.png" width="19%" alt="Wrong Move Hook" />
-  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/03_Combo_Wave_Reveal_9x16.png" width="19%" alt="Star Eyes Praise" />
-  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/05_Endcard_Transition_9x16.png" width="19%" alt="00:00 Explosion Transition" />
-  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/04_Endcard_Logo_CTA_9x16.png" width="19%" alt="Endcard Logo & CTA" />
+  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/00_Cover_Thumbnail_9x16.jpg" width="16%" alt="Cover Thumbnail" />
+  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/01_Hook_Start_9x16.png" width="16%" alt="Opening HUD" />
+  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/02_Wrong_Move_Hook_9x16.png" width="16%" alt="Wrong Move Hook" />
+  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/03_Combo_Wave_Reveal_9x16.png" width="16%" alt="Star Eyes Praise" />
+  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/05_Endcard_Transition_9x16.png" width="16%" alt="00:00 Explosion Transition" />
+  <img src="CreativeAd_AfterEffects/Higgsfield_Keyframes/04_Endcard_Logo_CTA_9x16.png" width="16%" alt="Endcard Logo & CTA" />
 </p>
 
 ---
