@@ -8,7 +8,7 @@ A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa 
 
 - **Creative Video (MP4 in Repo):** [`CreativeAd_AfterEffects/NumberMatch_Creative_Video_Final.mp4`](CreativeAd_AfterEffects/NumberMatch_Creative_Video_Final.mp4)
 - **Raw Gameplay Capture (1080×1920, 30 FPS):** [`CreativeAd_AfterEffects/NumberMatch_Raw_Gameplay.mp4`](CreativeAd_AfterEffects/NumberMatch_Raw_Gameplay.mp4)
-- **YouTube Shorts Link:** *(Uploading — YouTube link will be added here)*
+- **YouTube Shorts Link:** [Watch on YouTube Shorts](https://youtube.com/shorts/G4jU1Z6JKeI)
 - **Live Playable Ad Demo (Unity Playworks HTML5):** [Play Number Match in Browser](https://tugcemelisa.github.io/playable-ads-portfolio/number-match/)
 - **Playable Ads Portfolio Repository:** [https://github.com/tugcemelisa/playable-ads-portfolio](https://github.com/tugcemelisa/playable-ads-portfolio)
 
