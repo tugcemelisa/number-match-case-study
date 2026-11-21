@@ -17,6 +17,7 @@ public class PixelPaintGrid : MonoBehaviour
     readonly List<PaintPiece> _leftoverPieces = new();
 
     public BoardData Board => _board;
+    public IReadOnlyList<PaintPiece> LeftoverPieces => _leftoverPieces;
 
     // A wrong drop still landed on a real cell - briefly flash that
     // socket red so the rejection is anchored to a specific place on the

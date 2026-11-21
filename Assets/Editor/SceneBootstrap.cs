@@ -50,9 +50,10 @@ static class SceneBootstrap
 
         bool changed = false;
         changed |= EnsureComponent<BoardCameraFitter>("Board Camera Fitter");
-        changed |= EnsureComponent<FpsCounter>("Fps Counter");
+        changed |= RemoveFpsCounter();
         changed |= EnsureComponent<GameHud>("Game Hud");
         changed |= EnsureComponent<TouchCursor>("Touch Cursor");
+        changed |= EnsureComponent<CreativeVideoDirector>("Creative Video Director");
         changed |= EnsureDragDropController();
         changed |= EnsureRevealEffects();
         changed |= FixRevealBurstPlayOnAwake();
@@ -86,6 +87,53 @@ static class SceneBootstrap
                 Debug.Log("SceneBootstrap: skipped saving scene changes - Play mode started mid-pass; will retry next edit-mode recompile.");
             }
         }
+
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-nm-record") >= 0 && !EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            EditorApplication.isPlaying = true;
+        }
+    }
+
+    [MenuItem("Creative Video/Record Hook Gameplay (1080x1920)")]
+    public static void StartRecordingMenu()
+    {
+        EditorSceneManager.OpenScene("Assets/Scenes/Game.unity");
+        CreativeVideoDirector dir = Object.FindAnyObjectByType<CreativeVideoDirector>();
+        if (dir == null)
+        {
+            var go = new GameObject("Creative Video Director");
+            dir = go.AddComponent<CreativeVideoDirector>();
+        }
+        dir.autoPlayHooks = true;
+        dir.recordFrames = true;
+        EditorSceneManager.SaveOpenScenes();
+        EditorApplication.isPlaying = true;
+    }
+
+    public static void BuildRecorderPlayer()
+    {
+        EditorSceneManager.OpenScene("Assets/Scenes/Game.unity");
+        Run();
+        PlayerSettings.defaultScreenWidth = 540;
+        PlayerSettings.defaultScreenHeight = 960;
+        PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+        PlayerSettings.runInBackground = true;
+        Directory.CreateDirectory("Builds/Recorder");
+        var report = BuildPipeline.BuildPlayer(
+            new[] { "Assets/Scenes/Game.unity" },
+            "Builds/Recorder/NumberMatchRecorder.exe",
+            BuildTarget.StandaloneWindows64,
+            BuildOptions.None);
+        Debug.Log("[CreativeVideo] BuildRecorderPlayer result: " + report.summary.result);
+    }
+
+    static bool RemoveFpsCounter()
+    {
+        FpsCounter existing = Object.FindAnyObjectByType<FpsCounter>();
+        if (existing == null)
+            return false;
+        Object.DestroyImmediate(existing.gameObject);
+        return true;
     }
 
     static bool EnsureComponent<T>(string gameObjectName) where T : Component

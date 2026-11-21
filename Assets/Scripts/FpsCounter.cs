@@ -5,6 +5,7 @@ using UnityEngine;
 // jittering every frame.
 public class FpsCounter : MonoBehaviour
 {
+    [SerializeField] bool showFps = false;
     const float SampleWindow = 0.5f;
 
     float _timer;
@@ -27,6 +28,7 @@ public class FpsCounter : MonoBehaviour
 
     void OnGUI()
     {
+        if (!showFps) return;
         _style ??= new GUIStyle(GUI.skin.label)
         {
             fontSize = 42,

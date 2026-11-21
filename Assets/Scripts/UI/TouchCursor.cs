@@ -30,6 +30,17 @@ public class TouchCursor : MonoBehaviour
     float _targetScaleMultiplier = 1f;
     bool _wasPressed;
 
+    static bool _useSimulated;
+    static Vector2 _simScreenPos;
+    static bool _simPressed;
+
+    public static void SetSimulatedPointer(bool active, Vector2 screenPos, bool pressed)
+    {
+        _useSimulated = active;
+        _simScreenPos = screenPos;
+        _simPressed = pressed;
+    }
+
     void Awake()
     {
         Canvas canvas = BuildCanvas();
@@ -109,6 +120,12 @@ public class TouchCursor : MonoBehaviour
 
     static bool TryReadPointer(out Vector2 screenPos, out bool pressed)
     {
+        if (_useSimulated)
+        {
+            screenPos = _simScreenPos;
+            pressed = _simPressed;
+            return true;
+        }
         if (Mouse.current != null)
         {
             screenPos = Mouse.current.position.ReadValue();
