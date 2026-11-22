@@ -1,13 +1,12 @@
 # Number Match — 3D Pixel Art Puzzle & Creative Ad Case Study
 
-A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa Tuğçe Haspolat**, complete with a 9:16 vertical **Marketing Creative Video** produced with **Adobe After Effects** and **Adobe Illustrator / Photoshop**, plus a **Playable Ad** version in the [Playable Ads Portfolio](https://github.com/tugcemelisa/playable-ads-portfolio).
+A 3D colour-by-number mobile puzzle game built in **Unity 6 (URP)** by **Melisa Tuğçe Haspolat**, complete with a 9:16 vertical **Marketing Creative Video** produced with **Adobe After Effects** and **Adobe Illustrator / Photoshop**.
 
 ---
 
 ## Links
 
 - 🎬 **Creative Ad (YouTube Shorts):** [Watch on YouTube Shorts](https://youtube.com/shorts/G4jU1Z6JKeI)
-- 🎮 **Playable Ad (Live Browser Demo):** [Play Number Match Now](https://tugcemelisa.github.io/playable-ads-portfolio/number-match/)
 
 ---
 
